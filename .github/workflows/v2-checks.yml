@@ -10,6 +10,7 @@ permissions:
 jobs:
   verify:
     runs-on: ubuntu-latest
+    timeout-minutes: 20
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -21,7 +22,11 @@ jobs:
       - run: npm run typecheck
       - run: npm test
       - run: npm run test:security
-      - run: npx playwright install --with-deps chromium
+      # Hosted Ubuntu already supplies Chrome's shared libraries. Avoid a full
+      # apt repository refresh for every run; still install the pinned browser.
+      - name: Install Chromium
+        run: npx playwright install chromium
+        timeout-minutes: 5
       - run: npm run test:family-local
       - run: npm run test:e2e
       - run: npm run check:cloud-config && npm run build
