@@ -4,10 +4,16 @@ Repository: https://github.com/amaijulianson-source/EatFirst
 
 Public Pages target: https://amaijulianson-source.github.io/EatFirst/
 
-## Configuration
+## Current status
+
+Repository read access is verified, but Git push and connected API writes return HTTP 403 (Resource not accessible by integration). Pages configuration is also denied. The app is committed locally; no code is pushed and no public site is deployed yet.
+
+Required owner action: https://github.com/settings/installations → Configure the ChatGPT/Codex GitHub App → Repository access → include EatFirst → Save. Public visibility alone does not grant the integration write access. If Pages remains denied afterward, repository Settings → Pages → Build and deployment → Source → GitHub Actions.
+
+## Prepared configuration
 
 - Public repository, existing default branch `main`. Its initial `.gitattributes` and commit history were preserved by merging, without force-pushing.
-- GitHub Pages source: GitHub Actions. `.github/workflows/deploy.yml` validates and publishes default-branch updates automatically; manual dispatch is also available.
+- Intended GitHub Pages source: GitHub Actions. `.github/workflows/deploy.yml` validates and publishes default-branch updates automatically; manual dispatch is also available.
 - CI runs lint, typecheck, unit tests, desktop/mobile browser tests and a production build. `BASE_PATH` derives from the exact repository name, generating `/EatFirst/` URLs for assets, manifest identity, launch URL, scope and service worker.
 - HTTPS is provided by GitHub Pages. No custom domain, paid service or backend is used.
 - PWA includes standalone mode, 192/512 PNG icons, a maskable icon, 180px Apple touch icon, iOS metadata, safe-area layout, offline app cache and local IndexedDB.

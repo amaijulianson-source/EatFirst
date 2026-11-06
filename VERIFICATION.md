@@ -37,3 +37,9 @@ Final visual check corrected document-level dark-theme inheritance and verified 
 - The first subdirectory test attempt used a preview server mounted at `/` instead of `/Eatfirst/`; it failed to load assets. After configuring the preview server with the same `BASE_PATH` as the build, the complete suite and PWA checks passed.
 - The GitHub connector confirms the connected account is `amaijulianson-source`. Both the connector and authenticated CLI return 404 for `amaijulianson-source/Eatfirst`, and it is absent from the repositories visible to this connection. The exact target URL and repository access are required before selecting its existing default branch, pushing or configuring Pages.
 - No public deployment has occurred, no public production URL is verified, and no physical iPhone/Android install has been claimed. No unrelated repository contents were read or changed.
+
+## Confirmed repository and permission check
+
+The user supplied https://github.com/amaijulianson-source/EatFirst and made it public. On 2026-11-06 both GitHub connections could read it. The verified default branch is `main`; its initial `.gitattributes` and history were merged into the complete local app without replacement or force-push. Lint, typecheck, 22 unit tests and all 6 desktop/mobile browser tests passed again.
+
+Publication is still blocked: authenticated Git push returned HTTP 403, the connected GitHub blob API returned “Resource not accessible by integration” (403), and the Pages creation API returned the same denial. The integration requires explicit repository access; public visibility grants reading but does not grant writing. No application code has been pushed and no Pages site is deployed. The owner has been asked to add EatFirst to the GitHub App installation's repository access. The documented Pages URL remains a target until actual deployment succeeds.
