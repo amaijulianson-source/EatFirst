@@ -243,26 +243,44 @@ test("date-only photo is matched explicitly and a draft can be corrected or remo
     page.getByRole("heading", { name: "Your kitchen starts here" }),
   ).toBeVisible();
 });
-test("cancelling photo analysis leaves inventory unchanged", async ({
-  page,
-}) => {
-  await page.route("**/ocr/v1/core.wasm.js", async (route) => {
-    await new Promise((resolve) => setTimeout(resolve, 1000));
-    await route.continue().catch(() => undefined);
+test.describe("cancellation during a paused tool download", () => {
+  // A service worker can satisfy this request before Playwright's route sees it.
+  // Other tests exercise the real worker/offline path. This isolates cancellation.
+  test.use({ serviceWorkers: "block" });
+  test("cancelling photo analysis leaves inventory unchanged", async ({
+    page,
+  }) => {
+    let release!: () => void;
+    let requested = false;
+    const paused = new Promise<void>((resolve) => {
+      release = resolve;
+    });
+    await page.route("**/ocr/v1/core.wasm.js", async (route) => {
+      requested = true;
+      await paused;
+      await route.continue().catch(() => undefined);
+    });
+    try {
+      await enter(page, "Import from photos");
+      const d = page.getByRole("dialog");
+      await d
+        .getByLabel("Choose multiple photos")
+        .setInputFiles("tests/fixtures/entry/milk-label.png");
+      await expect.poll(() => requested, { timeout: 15000 }).toBe(true);
+      await expect(
+        d.getByRole("button", { name: "Stop reading", exact: true }),
+      ).toBeVisible();
+      await d
+        .getByRole("button", { name: "Stop reading", exact: true })
+        .click();
+      await expect(d.getByRole("status")).toContainText("Reading stopped");
+      await d.getByRole("button", { name: "Close dialog" }).click();
+      await page.goto("./#Inventory");
+      await expect(
+        page.getByRole("heading", { name: "Your kitchen starts here" }),
+      ).toBeVisible();
+    } finally {
+      release();
+    }
   });
-  await enter(page, "Import from photos");
-  const d = page.getByRole("dialog");
-  await d
-    .getByLabel("Choose multiple photos")
-    .setInputFiles("tests/fixtures/entry/milk-label.png");
-  await expect(
-    d.getByRole("button", { name: "Stop reading", exact: true }),
-  ).toBeVisible();
-  await d.getByRole("button", { name: "Stop reading", exact: true }).click();
-  await expect(d.getByRole("status")).toContainText("Reading stopped");
-  await d.getByRole("button", { name: "Close dialog" }).click();
-  await page.goto("./#Inventory");
-  await expect(
-    page.getByRole("heading", { name: "Your kitchen starts here" }),
-  ).toBeVisible();
 });
