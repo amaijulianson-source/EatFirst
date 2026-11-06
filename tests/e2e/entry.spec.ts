@@ -118,7 +118,13 @@ test("real multi-photo OCR, draft persistence and offline OCR after preparation"
     ]);
   await expect(
     d.getByRole("heading", { name: "Review 3 groceries", exact: true }),
-  ).toBeVisible({ timeout: 90000 });
+  )
+    .toBeVisible({ timeout: 90000 })
+    .catch(async (error: unknown) => {
+      console.error("Multi-photo review state:", await d.innerText());
+      console.error("Browser errors:", errors);
+      throw error;
+    });
   await expect(d.getByLabel("Item name", { exact: true })).toHaveCount(3);
   await expect(d.getByLabel("Item name", { exact: true }).first()).toHaveValue(
     "Milk (semi-skimmed)",
