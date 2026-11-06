@@ -50,7 +50,7 @@ npm run build
 npm run preview -- --port 4173
 ```
 
-Playwright tests use the production build at port 4173 in desktop Chromium and mobile-size Chromium. They cover empty states, add/edit/consume/discard/remove, shopping transfer, persistence after reload, recipe steps, backup export/invalid rejection, themes and offline reload. This is mobile viewport emulation, not a physical-device Safari test.
+Playwright tests use the production build at port 4175 in desktop Chromium and mobile-size Chromium. They cover empty states, add/edit/consume/discard/remove, shopping transfer, persistence after reload, recipe steps, backup export/invalid rejection, themes and offline reload. This is mobile viewport emulation, not a physical-device Safari test.
 
 ## Build and deployment
 
@@ -62,13 +62,17 @@ Upload **the contents of `dist/`** to any HTTPS static host. Hash navigation and
 
 ### GitHub Pages (free for a public repository)
 
-Deployment is prepared and publication has been authorized by the owner, but the connected account cannot currently access the target repository. After repository access is granted:
+Repository: https://github.com/amaijulianson-source/EatFirst
+
+Pages deployment target: https://amaijulianson-source.github.io/EatFirst/
+
+The repository uses `main`, and deployment runs automatically on default-branch updates. To configure the same setup in another repository:
 
 1. Create/select a GitHub repository and push **the contents of this directory as its root**.
 2. In repository Settings → Pages, select **GitHub Actions** as the source.
 3. In Actions, manually run **Deploy EatFirst to GitHub Pages**. The workflow runs lint, typecheck, unit tests and build, then publishes `dist/`.
 
-The workflow deploys automatically on updates to the repository’s existing default branch, and can also be started manually. Other branches do not deploy. The production build uses the exact repository name from GitHub to set its base URL, manifest ID/scope/start URL and service-worker scope. No credentials are included. Alternatively upload `dist/` through Cloudflare Pages Direct Upload on its free plan. No external repository or account settings have been changed while target repository access is unavailable.
+The workflow deploys automatically on updates to the repository’s existing default branch, and can also be started manually. Other branches do not deploy. The production build uses the exact repository name from GitHub to set its base URL, manifest ID/scope/start URL and service-worker scope. No credentials are included. Alternatively upload `dist/` through Cloudflare Pages Direct Upload on its free plan. This deployment uses the public EatFirst repository only.
 
 ## Backup and restore
 
@@ -110,10 +114,10 @@ Let the first load finish while online before trying airplane mode. Keep regular
 ### Verify the public deployment
 
 ```sh
-PLAYWRIGHT_BASE_URL=https://OWNER.github.io/REPOSITORY/ npm run test:e2e
-EATFIRST_URL=https://OWNER.github.io/REPOSITORY/ node tests/pwa-check.mjs
+PLAYWRIGHT_BASE_URL=https://amaijulianson-source.github.io/EatFirst/ npm run test:e2e
+EATFIRST_URL=https://amaijulianson-source.github.io/EatFirst/ node tests/pwa-check.mjs
 ```
 
-Replace OWNER/REPOSITORY with the actual confirmed Pages address and preserve capitalization and the trailing slash. Browser tests use isolated profiles and modify only their own local browser data. The additional PWA check validates manifest identity, all icons, Apple icon, service-worker scope, offline home-screen-style launch/refresh, mobile overflow and page errors.
+Preserve the exact `/EatFirst/` capitalization and the trailing slash. Browser tests use isolated profiles and modify only their own local browser data. The additional PWA check validates manifest identity, all icons, Apple icon, service-worker scope, offline home-screen-style launch/refresh, mobile overflow and page errors.
 
 For a local Pages-subdirectory rehearsal, set `BASE_PATH=/Eatfirst/` for **both** `npm run build` and `npm run preview`. Without the environment variable on preview, Vite serves a different mount point. Default development and browser tests continue to use `/`.
