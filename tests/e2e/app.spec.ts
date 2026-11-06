@@ -9,6 +9,7 @@ test("daily kitchen flow, persistence, waste and shopping", async ({
     page.getByRole("heading", { name: "Good food, better days." }),
   ).toBeVisible();
   await page.getByRole("button", { name: "Add food", exact: true }).click();
+  await page.getByRole("button", { name: "Quick add", exact: true }).click();
   await page.getByLabel("Food name").fill("Eggs");
   await page.getByLabel("Quantity", { exact: true }).fill("6");
   await page.getByLabel("Expiry date (optional)").fill("2099-12-31");
@@ -120,6 +121,7 @@ test("quick multi-add, filters, confirmed restore and cooking deduction", async 
 }, info) => {
   await page.goto("./");
   await page.getByRole("button", { name: "Add food", exact: true }).click();
+  await page.getByRole("button", { name: "Quick add", exact: true }).click();
   await page.getByLabel("Food name").fill("Tomatoes");
   await page.getByRole("button", { name: "Save & add another" }).click();
   await expect(page.getByLabel("Food name")).toHaveValue("");

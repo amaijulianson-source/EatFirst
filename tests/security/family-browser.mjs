@@ -51,7 +51,8 @@ try {
   // Seed real V1-style local data through the existing UI before opting into cloud.
   await a.goto(base);
   await a.getByRole("button", { name: "Add food", exact: true }).click();
-  await a.getByLabel("Food name").fill("Legacy banana");
+  await a.getByRole("button", { name: "Quick add", exact: true }).click();
+  await a.getByLabel("Food name").fill("Bananas");
   await a.getByRole("button", { name: "Save food", exact: true }).click();
   async function login(page, account) {
     // Real local GoTrue session fixture. This verifies app sessions and sharing;
@@ -113,73 +114,65 @@ try {
     .waitFor();
   await a.goto(`${base}#Inventory`);
   await a.getByRole("button", { name: "Add food", exact: true }).click();
-  await a.getByLabel("Food name").fill("Shared milk");
+  await a.getByRole("button", { name: "Quick add", exact: true }).click();
+  await a.getByLabel("Food name").fill("Milk");
   await a.getByRole("button", { name: "Save food", exact: true }).click();
   await expect
     .poll(async () => {
       const r = await owner.rpc("household_snapshot", { h: house });
-      return r.data?.foods.some((f) => f.name === "Shared milk");
+      return r.data?.foods.some((f) => f.name === "Milk");
     })
     .toBe(true);
   await b.goto(`${base}#Inventory`);
   await b.evaluate(() => window.dispatchEvent(new Event("focus")));
-  await expect(
-    b.getByRole("button", { name: /Shared milk 1 pieces/ }),
-  ).toBeVisible();
+  await expect(b.getByRole("button", { name: /Milk 1 pieces/ })).toBeVisible();
   // Disconnect a real browser; queue a new item and reload from the PWA cache.
   await b.evaluate(async () => {
     await navigator.serviceWorker.ready;
   });
   await b.reload();
-  await expect(
-    b.getByRole("button", { name: /Shared milk 1 pieces/ }),
-  ).toBeVisible();
+  await expect(b.getByRole("button", { name: /Milk 1 pieces/ })).toBeVisible();
   await cb.setOffline(true);
   await b.getByRole("button", { name: "Add food", exact: true }).click();
-  await b.getByLabel("Food name").fill("Offline eggs");
+  await b.getByRole("button", { name: "Quick add", exact: true }).click();
+  await b.getByLabel("Food name").fill("Eggs");
   await b.getByRole("button", { name: "Save food", exact: true }).click();
-  await expect(
-    b.getByRole("button", { name: /Offline eggs 1 pieces/ }),
-  ).toBeVisible();
+  await expect(b.getByRole("button", { name: /Eggs 1 pieces/ })).toBeVisible();
   await b.reload();
-  await expect(
-    b.getByRole("button", { name: /Offline eggs 1 pieces/ }),
-  ).toBeVisible();
+  await expect(b.getByRole("button", { name: /Eggs 1 pieces/ })).toBeVisible();
   await cb.setOffline(false);
   await expect
     .poll(
       async () => {
         const r = await member.rpc("household_snapshot", { h: house });
-        return r.data?.foods.some((f) => f.name === "Offline eggs");
+        return r.data?.foods.some((f) => f.name === "Eggs");
       },
       { timeout: 20000 },
     )
     .toBe(true);
   await a.evaluate(() => window.dispatchEvent(new Event("focus")));
-  await expect(a.getByRole("button", { name: /Offline eggs 1 pieces/ }), {
+  await expect(a.getByRole("button", { name: /Eggs 1 pieces/ }), {
     timeout: 15000,
   }).toBeVisible();
   await b.goto(`${base}#Shopping`);
-  await b.getByLabel("Shopping item name").fill("Shared bread");
+  await b.getByLabel("Shopping item name").fill("Bread");
   await b.getByLabel("New shopping item quantity").fill("1 loaf");
   await b.getByRole("button", { name: "Add to list" }).click();
   await expect
     .poll(async () => {
       const r = await owner.rpc("household_snapshot", { h: house });
-      return r.data?.shopping.some((s) => s.name === "Shared bread");
+      return r.data?.shopping.some((s) => s.name === "Bread");
     })
     .toBe(true);
   await a.goto(`${base}#Shopping`);
   await a.evaluate(() => window.dispatchEvent(new Event("focus")));
-  await expect(
-    a.getByLabel("Edit Shared bread", { exact: true }),
-  ).toBeVisible();
+  await expect(a.getByLabel("Edit Bread", { exact: true })).toBeVisible();
   await b.getByRole("button", { name: "Start shopping mode" }).click();
-  await b.getByRole("checkbox", { name: "Purchased Shared bread" }).check();
+  await b.getByRole("checkbox", { name: "Purchased Bread" }).check();
   await expect
     .poll(async () => {
       const r = await owner.rpc("household_snapshot", { h: house });
-      return r.data?.frequent.find((f) => f.name === "Shared bread")?.count;
+      return r.data?.frequent.find((f) => f.name === "Bread")?.count;
     })
     .toBe(1);
   await b.getByRole("button", { name: "Put away", exact: true }).click();
@@ -189,8 +182,8 @@ try {
     .poll(async () => {
       const r = await owner.rpc("household_snapshot", { h: house });
       return [
-        r.data?.foods.some((f) => f.name === "Shared bread"),
-        r.data?.shopping.some((s) => s.name === "Shared bread"),
+        r.data?.foods.some((f) => f.name === "Bread"),
+        r.data?.shopping.some((s) => s.name === "Bread"),
       ];
     })
     .toEqual([true, false]);
@@ -198,6 +191,7 @@ try {
   await b.goto(`${base}#Inventory`);
   await cb.setOffline(true);
   await b.getByRole("button", { name: "Add food", exact: true }).click();
+  await b.getByRole("button", { name: "Quick add", exact: true }).click();
   await b.getByLabel("Food name").fill("Revoked access draft");
   await b.getByRole("button", { name: "Save food", exact: true }).click();
   await expect(
@@ -229,11 +223,9 @@ try {
   await a.getByRole("button", { name: "Sign out", exact: true }).click();
   await a.goto(`${base}#Inventory`);
   await expect(
-    a.getByRole("button", { name: /Legacy banana 1 pieces/ }),
+    a.getByRole("button", { name: /Bananas 1 pieces/ }),
   ).toBeVisible();
-  await expect(
-    a.getByRole("button", { name: /Shared milk 1 pieces/ }),
-  ).toHaveCount(0);
+  await expect(a.getByRole("button", { name: /Milk 1 pieces/ })).toHaveCount(0);
   assert.deepEqual(errors, []);
   await a.screenshot({
     path: "artifacts/v2-preserved-local-mobile.png",
