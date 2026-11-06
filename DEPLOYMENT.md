@@ -6,11 +6,11 @@ Public Pages target: https://amaijulianson-source.github.io/EatFirst/
 
 ## Current status
 
-**Deployed successfully and verified against the actual public HTTPS site on 2026-11-06.**
+**EatFirst V2 deployed successfully and verified against the actual public HTTPS site on 2026-11-06.**
 
 Public app: https://amaijulianson-source.github.io/EatFirst/
 
-The V2 release uses the automatic default-branch workflow `.github/workflows/deploy.yml`. Its final run and public verification are recorded in `docs/V2_VERIFICATION.md`.
+Successful V2 deployment: https://github.com/amaijulianson-source/EatFirst/actions/runs/42214250959 . The automatic default-branch workflow remains `.github/workflows/deploy.yml`. Public verification is recorded in `docs/V2_VERIFICATION.md`.
 
 The owner enabled Pages with GitHub Actions as its source. GitHub Pages reports HTTPS enforced. No further GitHub settings changes are required. All six desktop/mobile browser tests passed against the public URL; manifest/icon/scope/offline checks and Chromium's installability check passed. Physical-device installation is left to the owner's phone.
 

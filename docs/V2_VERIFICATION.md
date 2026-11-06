@@ -81,3 +81,20 @@ Reproduce the non-interactive provider/cancellation check with `node tests/secur
 The owner personally verified the real Google-account preview: sign-in, persistent sessions, household creation, invitation generation/acceptance, shared inventory, realtime shopping and logout/re-login all worked. The owner explicitly authorized V2 to replace V1, stated their V1 data is disposable, and required preservation of all real Supabase accounts/households. No real account/household is modified or deleted by release checks. Local migration remains available for other users.
 
 The final workflow runs lint/typecheck, units, PostgreSQL policy checks, the complete disposable local Auth/household suite, six desktop/mobile flows and Pages-path cloud-configured builds before deploying. The original preview remains at its existing scope/storage to preserve old invitation links and in-flight OAuth callbacks. The root worker excludes preview navigation. Worker updates wait for old windows to close instead of forcing reloads during edits.
+
+## Production deployment completed — 2026-11-06
+
+**V2 is live:** https://amaijulianson-source.github.io/EatFirst/ . PR #1 merged without force-pushing at `e0a7b47c1c5e58cf5b4d5cf301af1cc65bea8743`. Automatic Pages deployment succeeded: https://github.com/amaijulianson-source/EatFirst/actions/runs/42214250959 . Both final branch CI runs for `f171bd5` succeeded before merge.
+
+Checks actually executed for release:
+
+- Lint, TypeScript, all 43 unit tests, production Pages build and cloud configuration validation passed.
+- Independent PostgreSQL RLS/RPC suite and real disposable GoTrue/PostgREST two-browser Auth/household/migration/offline/conflict/shopping tests passed. The local family suite initially collided with concurrently running Playwright's output-directory cleanup; a sequential rerun passed. Production CI runs the suites sequentially and passed.
+- Hosted Google configuration was enabled, global signup allowed, and all eight household tables denied anonymous reads with PostgreSQL permission code `42501`. No real hosted account or household was modified/deleted.
+- **All six Playwright desktop/mobile tests passed on the actual production HTTPS URL**: grocery CRUD/consumption/waste, shopping purchase/transfer, persistence, recipe suggestions/cooking deduction, search/filters, settings, backup/restore and empty states.
+- Production manifest, 192/512/maskable icons, Apple icon and exact worker scope passed. Offline inventory navigation/refresh passed, with no horizontal phone overflow and zero page errors.
+- Production Google button generated the correct root redirect and S256 PKCE, reached a valid Google sign-in screen and returned through the real hosted cancellation callback to production Family. Full Google-account login and household/realtime checks were personally verified by the owner in preview; automated production tests do not pretend to log into that private account.
+- An isolated persistent browser profile with the previous **real deployed V1 worker and grocery** detected the waiting V2 worker without forced reload. Closing all windows and reopening activated V2, retained the V1 grocery through schema upgrade and refresh, and produced zero page errors. This verifies Chromium's cached-worker upgrade mechanism, not a physical iPhone/Android installation.
+- Main-worker installation preserved the preview cache in a separate browser check, and preview remained usable offline. The retained public preview's offline/manifest checks also passed after production release.
+
+Existing preview households are real Supabase households and remain intact. On the main URL use the same Google account and select the existing household under Family → Active kitchen. Preview sessions/local data remain separate by design. V1 migration is still available for users who need it. No storage-clearing update instruction is required. Physical installed-PWA OAuth/browser behavior can differ by platform; opening online, closing old windows and reopening is the supported update path.
