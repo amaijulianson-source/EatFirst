@@ -21,4 +21,14 @@ Full Google account interaction was verified by the owner in V2; this upgrade pr
 
 ## Deployment and live results
 
-To be recorded after the authorized release completes. GitHub Actions repeats all required checks before publishing. V3 must not be called live until the production workflow succeeds and the public application is checked.
+**V3 is live and verified at https://amaijulianson-source.github.io/EatFirst/.** PR #2 merged without force-pushing at `000fec3341b431e6d34cf50e73418f548cbfb0fd`. Production deployment succeeded: https://github.com/amaijulianson-source/EatFirst/actions/runs/42223194364 . Both feature CI runs (`42222618516`, `42222694959`) passed before merge.
+
+Checks on the actual public production application:
+
+- **All 12 desktop/mobile Playwright tests passed** (23.1 seconds): existing inventory/shopping/recipe/backup/waste flows plus new adaptive recipes, serving shortfalls, favorites, history, confirmed deductions, exclusions, quantity-aware shopping, photo fallback, credits, filters and recipe-memory export.
+- Manifest, icons, exact worker scope, offline navigation/refresh, phone overflow and page-error checks passed. Chromium reported no installability errors. All 3 local WebP assets returned HTTP 200 with image/webp.
+- Real Google authorization reached a valid Google sign-in screen with the exact production redirect and S256 PKCE. A valid cancellation returned to production Family with a readable error. No personal password/token was requested; full account interaction remains the previously owner-verified V2 flow.
+- An isolated persistent profile seeded from the actual pre-release V2 site detected a waiting V3 worker without a forced reload. Closing all old windows and reopening activated V3. The saved V2 grocery survived navigation and refresh. Offline Recipes, recipe details and the photograph loaded successfully, with zero page errors.
+- Hosted Google remained enabled. All eight shared tables denied anonymous reads with PostgreSQL permission code 42501. Independent local RLS/household/concurrency tests passed; no real hosted household/account was used as a write fixture. No production SQL or database reset occurred.
+
+Favorites, exclusions and history are device-local per account/kitchen and use their own recipe-memory backup. Existing grocery/shared-data backups remain compatible. Unknown quantities/preparation history need verification; recipe guidance was not physically kitchen-tested. No new paid service or family signup requirement was introduced. Close old EatFirst windows and reopen online for the update; do not clear storage or reinstall for routine updates.
