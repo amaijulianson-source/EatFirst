@@ -1,3 +1,4 @@
+import { ingredientKey } from "./cooking/ingredients";
 export const categories = [
   "Produce",
   "Dairy",
@@ -199,7 +200,7 @@ export function normalize(s: string) {
     "plain yogurt": "yogurt",
   };
   const v = s.toLowerCase().trim().replace(/\s+/g, " ");
-  return Object.hasOwn(aliases, v) ? aliases[v] : v;
+  return ingredientKey(Object.hasOwn(aliases, v) ? aliases[v] : v);
 }
 export function addShopping(data: Data, names: string[]): Data {
   const exists = new Set(data.shopping.map((s) => normalize(s.name)));

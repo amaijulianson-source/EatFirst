@@ -41,7 +41,7 @@ test("daily kitchen flow, persistence, waste and shopping", async ({
   await page.getByLabel("Shopping item name").fill("Tomatoes");
   await page.getByRole("button", { name: "Add to list" }).click();
   await page.getByRole("checkbox", { name: "Purchased Tomatoes" }).check();
-  await page.getByRole("button", { name: "Put away", exact:true }).click();
+  await page.getByRole("button", { name: "Put away", exact: true }).click();
   await page.getByLabel("Expiry date (optional)").fill("2099-12-31");
   await page.getByRole("button", { name: "Save food", exact: true }).click();
   await expect(page.getByLabel("Edit Tomatoes", { exact: true })).toHaveCount(
@@ -76,6 +76,12 @@ test("recipes, settings, backup and offline shell", async ({
       ? page.getByRole("navigation", { name: "Mobile navigation" })
       : page.getByRole("navigation", { name: "Main navigation" });
   await nav.getByRole("button", { name: "Recipes", exact: true }).click();
+  await page
+    .getByRole("button", { name: "Discover recipes", exact: true })
+    .click();
+  await page
+    .getByLabel("Search recipes or ingredients")
+    .fill("Garden omelette");
   await page.getByRole("button", { name: /Garden omelette/ }).click();
   await expect(page.getByRole("heading", { name: "Let’s cook" })).toBeVisible();
   await page
@@ -132,6 +138,10 @@ test("quick multi-add, filters, confirmed restore and cooking deduction", async 
     .selectOption("No date");
   await expect(page.locator(".food-row")).toHaveCount(2);
   await nav.getByRole("button", { name: "Recipes", exact: true }).click();
+  await page
+    .getByRole("button", { name: "Discover recipes", exact: true })
+    .click();
+  await page.getByLabel("Search recipes or ingredients").fill("Tomato toast");
   await page.getByRole("button", { name: /Tomato toast/ }).click();
   await page
     .getByRole("button", { name: "Cooked it? Update your inventory" })
