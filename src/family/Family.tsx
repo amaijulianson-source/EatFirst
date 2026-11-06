@@ -1,4 +1,4 @@
-import { useEffect, useState, type FormEvent } from "react";
+import { useEffect, useState, useRef, type FormEvent } from "react";
 import {
   Users,
   UserPlus,
@@ -36,6 +36,7 @@ type Invitation = {
 };
 export function Family() {
   const state = useKitchen();
+  const authForm = useRef<HTMLFormElement>(null);
   const [mode, setMode] = useState<"login" | "signup">("login"),
     [message, setMessage] = useState(""),
     [error, setError] = useState(""),
@@ -48,7 +49,7 @@ export function Family() {
     ),
     [confirm, setConfirm] = useState<"migrate" | "conflict" | null>(null),
     [backups, setBackups] = useState<
-      { id: string; label: string; date: string; data: Data }[]
+      { id: string; label: string; date: string; data: Data; owner?: string }[]
     >([]);
   const house = state.household;
   const houseId = house?.id;
@@ -100,10 +101,18 @@ export function Family() {
     return () => {
       cancelled = true;
     };
-  }, [houseId, owner, state.revision]);
+  }, [houseId, owner, state.revision, link]);
   useEffect(() => {
-    void db.backups.orderBy("date").reverse().toArray().then(setBackups);
-  }, [message, confirm]);
+    void db.backups
+      .orderBy("date")
+      .reverse()
+      .toArray()
+      .then((rows) =>
+        setBackups(
+          rows.filter((b) => !b.owner || b.owner === state.session?.user.id),
+        ),
+      );
+  }, [message, confirm, state.session?.user.id]);
   async function authenticate(e: FormEvent<HTMLFormElement>) {
     e.preventDefault();
     const fd = new FormData(e.currentTarget);
@@ -129,7 +138,7 @@ export function Family() {
       if (result.error) throw result.error;
       setMessage(
         mode === "signup"
-          ? "Check your email to confirm your account, then return to Family."
+          ? "Check your email to confirm your account, then return to Family and sign in. Open the confirmation link in the same browser when possible."
           : "Signed in. Choose or create your household below.",
       );
     });
@@ -163,6 +172,39 @@ export function Family() {
           </p>
         </div>
       )}
+      {state.recovery && state.session && (
+        <section className="panel padded">
+          <h2>Choose a new password</h2>
+          <form
+            onSubmit={(e) => {
+              e.preventDefault();
+              const fd = new FormData(e.currentTarget);
+              void run(async () => {
+                const { error } = await supabase!.auth.updateUser({
+                  password: String(fd.get("newPassword")),
+                });
+                if (error) throw error;
+                kitchen.finishRecovery();
+                setMessage("Password updated.");
+              });
+            }}
+          >
+            <label>
+              New password
+              <input
+                name="newPassword"
+                type="password"
+                autoComplete="new-password"
+                minLength={10}
+                required
+              />
+            </label>
+            <button className="btn primary" disabled={busy}>
+              Update password
+            </button>
+          </form>
+        </section>
+      )}
       {!state.session ? (
         <section className="panel padded auth-panel">
           <span className="empty-icon">
@@ -184,10 +226,12 @@ export function Family() {
               it.
             </div>
           )}
-          <div className="chips">
+          <div className="chips" role="tablist" aria-label="Account access">
             {(["login", "signup"] as const).map((m) => (
               <button
                 key={m}
+                role="tab"
+                aria-selected={mode === m}
                 className={mode === m ? "selected" : ""}
                 onClick={() => setMode(m)}
               >
@@ -195,7 +239,7 @@ export function Family() {
               </button>
             ))}
           </div>
-          <form onSubmit={authenticate}>
+          <form ref={authForm} onSubmit={authenticate}>
             {mode === "signup" && (
               <label>
                 Your display name
@@ -247,11 +291,34 @@ export function Family() {
               <ArrowRight size={17} />
             </button>
           </form>
+          <button
+            className="text-btn"
+            disabled={busy || !cloudConfigured}
+            onClick={() =>
+              run(async () => {
+                const input = authForm.current?.elements.namedItem(
+                  "email",
+                ) as HTMLInputElement | null;
+                if (!input || !input.checkValidity()) {
+                  input?.reportValidity();
+                  throw Error("Enter your email address first.");
+                }
+                const { error } = await supabase!.auth.resetPasswordForEmail(
+                  input.value.trim(),
+                  { redirectTo: appUrl() },
+                );
+                if (error) throw error;
+                setMessage(
+                  "If an account exists, a recovery email will arrive. Open it in this browser.",
+                );
+              })
+            }
+          >
+            Forgot password?
+          </button>
           <p className="muted small">
             Your password is handled by Supabase Auth. Never share it with
-            family members. Forgot your password? Ask the project owner to send
-            a recovery email from Supabase Authentication until account recovery
-            is configured.
+            family members.
           </p>
         </section>
       ) : (
@@ -348,7 +415,8 @@ export function Family() {
                 </button>
               </div>
             )}
-            {state.conflict && (
+            {(state.conflict ||
+              (state.state === "error" && state.pending > 0)) && (
               <div className="conflict-box">
                 <h3>Two people edited the same record</h3>
                 <p>
@@ -359,7 +427,8 @@ export function Family() {
                   re-entry.
                 </p>
                 <code>
-                  {state.conflict.table}: {state.conflict.key}
+                  {state.conflict?.table ?? "pending updates"}:{" "}
+                  {state.conflict?.key ?? "Review your retained proposal"}
                 </code>
                 <div className="button-stack">
                   <button
@@ -700,11 +769,16 @@ export function Family() {
                 <button
                   className="btn primary"
                   disabled={
-                    busy || state.pending > 0 || state.state !== "synced"
+                    busy ||
+                    state.migrated ||
+                    state.pending > 0 ||
+                    state.state !== "synced"
                   }
                   onClick={() => setConfirm("migrate")}
                 >
-                  Review local migration
+                  {state.migrated
+                    ? "Local kitchen already imported"
+                    : "Review local migration"}
                 </button>
                 <button
                   className="btn secondary"

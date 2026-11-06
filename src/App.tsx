@@ -54,6 +54,7 @@ import {
   type Data,
   type Food,
   type Event,
+  type Shopping,
 } from "./core";
 import { preserveBackup } from "./db";
 import { kitchen } from "./family/store";
@@ -162,9 +163,11 @@ export default function App() {
     [sort, setSort] = useState("expiry"),
     [recipeFilter, setRecipeFilter] = useState("All"),
     [now, setNow] = useState(localDate()),
-    [undo, setUndo] = useState<Data | null>(null);
+    [undo, setUndo] = useState<Food | null>(null);
   const dataRef = useRef<Data | null>(null);
   const lock = useRef(false);
+  const transferBaseline = useRef<Shopping | null>(null);
+  const formScope = useRef<string>(family.household?.id ?? "local");
   useEffect(() => {
     const timer = setInterval(() => setNow(localDate()), 30000);
     const hash = () => setPage((location.hash.slice(1) as Page) || "Today");
@@ -180,6 +183,12 @@ export default function App() {
       setData(family.data);
     }
   }, [family.data]);
+  useEffect(() => {
+    if (family.recovery) {
+      setPage("Family");
+      location.hash = "Family";
+    }
+  }, [family.recovery]);
   useEffect(() => {
     const t = data?.settings.theme;
     document.documentElement.dataset.theme =
@@ -209,13 +218,20 @@ export default function App() {
     message = "Saved on this device",
     optimistic = false,
   ) {
+    if (
+      (kitchen.getSnapshot().household?.id ?? "local") !==
+      (family.household?.id ?? "local")
+    )
+      throw Error(
+        "The active kitchen changed. Reopen this action in the intended kitchen.",
+      );
     if (lock.current) throw Error("A save is in progress. Please try again.");
     lock.current = true;
     setUndo(null);
     setSaving(true);
     if (optimistic) setData(next);
     try {
-      await kitchen.save(next, message);
+      await kitchen.save(next, message, data ?? undefined);
       dataRef.current = next;
       setData(next);
       setNotice(
@@ -293,6 +309,7 @@ export default function App() {
       currency: d.settings.currency,
     }).format(v);
   function newFood() {
+    formScope.current = family.household?.id ?? "local";
     setTransfer(undefined);
     setFood({});
   }
@@ -302,7 +319,7 @@ export default function App() {
       { ...before, foods: before.foods.filter((x) => x.id !== f.id) },
       `${f.name} removed`,
     );
-    setUndo(before);
+    setUndo(f);
   }
   function foodRow(f: Food) {
     const s = status(f, now);
@@ -313,6 +330,7 @@ export default function App() {
           className="food-main"
           onClick={() => {
             setTransfer(undefined);
+            formScope.current = family.household?.id ?? "local";
             setFood(f);
           }}
         >
@@ -349,6 +367,7 @@ export default function App() {
             title="Edit and more"
             onClick={() => {
               setTransfer(undefined);
+              formScope.current = family.household?.id ?? "local";
               setFood(f);
             }}
           >
@@ -459,8 +478,16 @@ export default function App() {
           <div className="local-note">
             <ShieldCheck size={20} />
             <div>
-              <strong>Just you & your kitchen</strong>
-              <p>Private. Local. No account needed.</p>
+              <strong>
+                {family.household
+                  ? "Your family kitchen"
+                  : "Just you & your kitchen"}
+              </strong>
+              <p>
+                {family.household
+                  ? "Private to household members."
+                  : "Private. Local. No account needed."}
+              </p>
             </div>
           </div>
           <button
@@ -735,6 +762,7 @@ export default function App() {
                         key={f.id}
                         onClick={() => {
                           setTransfer(undefined);
+                          formScope.current = family.household?.id ?? "local";
                           setFood(f);
                         }}
                       >
@@ -934,6 +962,8 @@ export default function App() {
               commit={commit}
               putAway={(s) => {
                 setTransfer(s.id);
+                transferBaseline.current = structuredClone(s);
+                formScope.current = family.household?.id ?? "local";
                 setFood({ name: s.name, category: s.category });
               }}
             />
@@ -1424,7 +1454,15 @@ export default function App() {
           {undo && (
             <button
               onClick={async () => {
-                await commit(undo, "Removal undone");
+                const current = dataRef.current!;
+                if (current.foods.some((f) => f.id === undo.id))
+                  throw Error(
+                    "This item is already present. It was not overwritten.",
+                  );
+                await commit(
+                  { ...current, foods: [...current.foods, undo] },
+                  "Removal undone",
+                );
                 setUndo(null);
               }}
             >
@@ -1452,6 +1490,10 @@ export default function App() {
           }}
           save={async (f, again) => {
             const current = dataRef.current!;
+            if (formScope.current !== (family.household?.id ?? "local"))
+              throw Error(
+                "Your active kitchen changed. Close this form and open it in the intended kitchen.",
+              );
             if (
               food.id &&
               canonical(current.foods.find((x) => x.id === food.id)) !==
@@ -1460,7 +1502,11 @@ export default function App() {
               throw Error(
                 "This item changed while you were editing. Close it and reopen the latest version; your current form was not saved.",
               );
-            if (transfer && !current.shopping.some((s) => s.id === transfer))
+            if (
+              transfer &&
+              canonical(current.shopping.find((s) => s.id === transfer)) !==
+                canonical(transferBaseline.current)
+            )
               throw Error(
                 "That shopping item was already put away or removed. Close this form to see the shared kitchen.",
               );
@@ -1726,8 +1772,10 @@ export default function App() {
           <p>
             This validated backup contains {pending.foods.length} groceries,{" "}
             {pending.shopping.length} shopping items and {pending.events.length}{" "}
-            activity entries. Import replaces all current local data and
-            settings. Export your current data first if needed.
+            activity entries. Import replaces the current kitchen and settings.
+            In Family mode it replaces the shared household data for everyone. A
+            local backup is preserved first. Export your current data first if
+            needed.
           </p>
           <div className="form-actions">
             <button className="btn secondary" onClick={() => setPending(null)}>
@@ -1740,6 +1788,7 @@ export default function App() {
                 await preserveBackup(
                   dataRef.current!,
                   "Before confirmed backup replacement",
+                  family.session?.user.id,
                 );
                 await commit(pending, "Backup restored");
                 setPending(null);

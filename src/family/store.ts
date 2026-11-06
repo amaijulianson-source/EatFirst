@@ -29,6 +29,8 @@ export type FamilyView = {
   revision: number;
   conflict?: ScopeCache["conflict"];
   readOnly?: boolean;
+  recovery?: boolean;
+  migrated?: boolean;
 };
 class KitchenStore {
   private view: FamilyView = {
@@ -98,8 +100,11 @@ class KitchenStore {
     }, 20000);
     if (supabase) {
       supabase.auth.onAuthStateChange((_event, session) => {
+        if (_event === "PASSWORD_RECOVERY") this.emit({ recovery: true });
         queueMicrotask(() => {
-          void this.serial(() => this.setSession(session));
+          void this.serial(() => this.setSession(session)).catch((e) =>
+            this.emit({ state: "error", error: (e as Error).message }),
+          );
         });
       });
       const { data, error } = await supabase.auth.getSession();
@@ -124,6 +129,7 @@ class KitchenStore {
       household: undefined,
       state: "local",
       pending: 0,
+      migrated: false,
       error: "",
       data: await readData(),
     });
@@ -131,14 +137,18 @@ class KitchenStore {
       const cached = await db.caches.get(`households:${session.user.id}`);
       if (Array.isArray(cached?.value))
         this.emit({ households: cached.value as Household[] });
-      await this.loadHouseholds();
       const saved = await db.caches.get(`active:${session.user.id}`);
-      if (typeof saved?.value === "string")
+      const cachedActive =
+        typeof saved?.value === "string" &&
+        this.view.households.some((h) => h.id === saved.value);
+      if (cachedActive) await this.selectInternal(saved!.value as string);
+      if (navigator.onLine) await this.loadHouseholds();
+      if (!cachedActive && typeof saved?.value === "string")
         await this.selectInternal(saved.value);
     }
   }
   async loadHouseholds() {
-    if (!supabase || !this.view.session) return;
+    if (!supabase || !this.view.session || !navigator.onLine) return;
     const { data, error } = await supabase
       .from("households")
       .select("id,name,owner_id")
@@ -199,6 +209,7 @@ class KitchenStore {
       data: this.cache?.data ?? emptyData(),
       pending: this.cache?.queue.length ?? 0,
       conflict: this.cache?.conflict,
+      migrated: this.cache?.migrated ?? false,
       state: navigator.onLine ? "syncing" : "offline",
       error: "",
     });
@@ -232,14 +243,16 @@ class KitchenStore {
   requestSync() {
     if (this.timer) clearTimeout(this.timer);
     this.timer = setTimeout(() => {
-      void this.serial(() => this.sync());
+      void this.serial(() => this.sync()).catch((e) =>
+        this.emit({ state: "error", error: (e as Error).message }),
+      );
     }, 120);
   }
   private async persist() {
     if (this.cache)
       await db.caches.put({ id: this.cache.id, value: this.cache });
   }
-  async save(next: Data, label = "Kitchen update") {
+  async save(next: Data, label = "Kitchen update", base?: Data) {
     return this.serial(async () => {
       if (this.view.readOnly)
         throw Error(
@@ -261,7 +274,31 @@ class KitchenStore {
         throw Error(
           "Resolve the pending conflict in Family before editing further.",
         );
-      const changes = diff(this.cache.data, next);
+      if (next.demo)
+        throw Error("Sample mode is only available in your local kitchen.");
+      const changes = diff(base ?? this.cache.data, next);
+      const rebased = overlay(this.cache.data, [
+        {
+          id: "ui-proposal",
+          changes,
+          created: new Date().toISOString(),
+          label,
+        },
+      ]);
+      if (rebased.conflict) {
+        await preserveBackup(
+          next,
+          "Edit proposal — newer shared record detected",
+          this.view.session?.user.id,
+        );
+        throw Error(
+          "A record changed while this action was open. Your proposal is preserved in Family backups. Review the current record before trying again.",
+        );
+      }
+      const accepted = {
+        ...rebased.data,
+        settings: { ...rebased.data.settings, theme: next.settings.theme },
+      };
       if (changes.length > 5000)
         throw Error(
           "This change is too large. Import a smaller backup (maximum 5000 record changes).",
@@ -272,16 +309,17 @@ class KitchenStore {
         created: new Date().toISOString(),
         label,
       };
-      this.cache = {
+      const updated = {
         ...this.cache,
-        data: next,
+        data: accepted,
         queue: changes.length
           ? [...this.cache.queue, operation]
           : this.cache.queue,
       };
-      await this.persist();
+      await db.caches.put({ id: updated.id, value: updated });
+      this.cache = updated;
       this.emit({
-        data: next,
+        data: accepted,
         pending: this.cache.queue.length,
         state: navigator.onLine ? "syncing" : "offline",
         error: "",
@@ -374,7 +412,7 @@ class KitchenStore {
         this.cache.queue.shift();
         await this.persist();
         turns++;
-      } while (turns < 50);
+      } while (turns < 10);
       this.emit({
         state: this.cache?.queue.length ? "syncing" : "synced",
         pending: this.cache?.queue.length ?? 0,
@@ -402,15 +440,20 @@ class KitchenStore {
       await preserveBackup(
         this.cache.data,
         "Conflict proposal — preserved before returning to shared version",
+        this.view.session?.user.id,
       );
       await db.caches.put({
         id: `conflict:${this.cache.id}:${crypto.randomUUID()}`,
         value: structuredClone(this.cache),
       });
-      this.cache.queue = [];
-      this.cache.conflict = undefined;
-      this.cache.data = this.cache.confirmed;
-      await this.persist();
+      const updated = {
+        ...this.cache,
+        queue: [],
+        conflict: undefined,
+        data: this.cache.confirmed,
+      };
+      await db.caches.put({ id: updated.id, value: updated });
+      this.cache = updated;
       this.emit({
         data: this.cache.data,
         pending: 0,
@@ -439,9 +482,12 @@ class KitchenStore {
       await preserveBackup(
         local,
         "Original local kitchen — before family migration",
+        this.view.session?.user.id,
       );
       const changes = diff(this.cache.data, merged);
-      this.cache = {
+      if (changes.length > 5000)
+        throw Error("Migration exceeds 5000 changes. Use a smaller batch.");
+      const updated = {
         ...this.cache,
         data: merged,
         migrated: true,
@@ -456,12 +502,10 @@ class KitchenStore {
             ]
           : [],
       };
-      if (changes.length > 5000)
-        throw Error(
-          "Migration exceeds 5000 changes. Export your kitchen and import a smaller batch.",
-        );
-      await this.persist();
+      await db.caches.put({ id: updated.id, value: updated });
+      this.cache = updated;
       this.emit({
+        migrated: true,
         data: merged,
         pending: this.cache.queue.length,
         state: "syncing",
@@ -495,7 +539,11 @@ class KitchenStore {
     await this.loadHouseholds();
     await this.select(data);
   }
+  finishRecovery() {
+    this.emit({ recovery: false });
+  }
   async logout() {
+    this.emit({ recovery: false });
     if (supabase) {
       const { error } = await supabase.auth.signOut({ scope: "local" });
       if (error) throw error;

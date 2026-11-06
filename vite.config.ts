@@ -4,6 +4,7 @@ import { VitePWA } from "vite-plugin-pwa";
 const base = process.env.BASE_PATH || "/";
 export default defineConfig({
   base,
+  build:{rollupOptions:{output:{manualChunks:{"vendor-react":["react","react-dom"],"vendor-cloud":["@supabase/supabase-js"],"vendor-database":["dexie"]}}}},
   plugins: [
     react(),
     VitePWA({

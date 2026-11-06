@@ -35,3 +35,12 @@ if (typeof window !== "undefined") {
     history.replaceState(null, "", u);
   }
 }
+
+if (
+  typeof window !== "undefined" &&
+  new URL(location.href).searchParams.has("code")
+) {
+  const u = new URL(location.href);
+  u.hash = "Family";
+  history.replaceState(null, "", u);
+}

@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useRef } from "react";
 import {
   Plus,
   Search,
@@ -11,6 +11,9 @@ import {
   ChevronUp,
   Refrigerator,
 } from "lucide-react";
+import { canonical } from "./changes";
+import { preserveBackup } from "../db";
+import { useKitchen } from "./useKitchen";
 import {
   addShopping,
   purchaseItem,
@@ -30,6 +33,9 @@ export function ShoppingView({
   commit: (data: Data, message?: string, optimistic?: boolean) => Promise<void>;
   putAway: (item: Shopping) => void;
 }) {
+  const family = useKitchen();
+  const focused = useRef(new Map<string, string>());
+  const [editError, setEditError] = useState("");
   const [mode, setMode] = useState(false),
     [query, setQuery] = useState(""),
     [showPurchased, setShowPurchased] = useState(true),
@@ -49,7 +55,28 @@ export function ShoppingView({
           Number(Boolean(b.priority)) - Number(Boolean(a.priority)) ||
           a.name.localeCompare(b.name),
       );
-  async function update(id: string, patch: Partial<Shopping>) {
+  async function update(id: string, patch: Partial<Shopping>, guard = false) {
+    const current = data.shopping.find((s) => s.id === id);
+    if (
+      guard &&
+      focused.current.has(id) &&
+      focused.current.get(id) !== canonical(current)
+    ) {
+      await preserveBackup(
+        {
+          ...data,
+          shopping: data.shopping.map((s) =>
+            s.id === id ? { ...s, ...patch } : s,
+          ),
+        },
+        "Shopping edit proposal — changed by another member",
+        family.session?.user.id,
+      );
+      setEditError(
+        "This shopping item changed while you were typing. Your proposal is preserved in Family → local backups. Review the latest item before editing again.",
+      );
+      return;
+    }
     await commit(
       {
         ...data,
@@ -81,20 +108,22 @@ export function ShoppingView({
           defaultValue={s.name}
           key={s.name}
           maxLength={100}
+          onFocus={() => focused.current.set(s.id, canonical(s))}
           onBlur={async (e) => {
             const name = e.target.value.trim();
-            if (name && name !== s.name) await update(s.id, { name });
+            if (name && name !== s.name) await update(s.id, { name }, true);
             else e.target.value = s.name;
           }}
         />
         <input
           aria-label={`Quantity for ${s.name}`}
+          onFocus={() => focused.current.set(s.id, canonical(s))}
           placeholder="Add quantity or note"
           defaultValue={s.quantity}
           maxLength={200}
           onBlur={async (e) => {
             if (e.target.value !== s.quantity)
-              await update(s.id, { quantity: e.target.value });
+              await update(s.id, { quantity: e.target.value }, true);
           }}
         />
         {!mode && (
@@ -124,7 +153,7 @@ export function ShoppingView({
                 maxLength={1000}
                 onBlur={(e) => {
                   if (e.target.value !== (s.notes ?? ""))
-                    void update(s.id, { notes: e.target.value });
+                    void update(s.id, { notes: e.target.value }, true);
                 }}
               />
             </label>
@@ -166,6 +195,12 @@ export function ShoppingView({
   );
   return (
     <div className={mode ? "shopping-mode" : ""}>
+      {editError && (
+        <div className="banner danger" role="alert">
+          {editError}
+          <button onClick={() => setEditError("")}>Dismiss</button>
+        </div>
+      )}
       <div className="page-heading">
         <div>
           <p className="eyebrow">A LITTLE LIST. A BETTER SHOP.</p>

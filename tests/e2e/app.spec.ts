@@ -41,7 +41,7 @@ test("daily kitchen flow, persistence, waste and shopping", async ({
   await page.getByLabel("Shopping item name").fill("Tomatoes");
   await page.getByRole("button", { name: "Add to list" }).click();
   await page.getByRole("checkbox", { name: "Purchased Tomatoes" }).check();
-  await page.getByRole("button", { name: "Put away" }).click();
+  await page.getByRole("button", { name: "Put away", exact:true }).click();
   await page.getByLabel("Expiry date (optional)").fill("2099-12-31");
   await page.getByRole("button", { name: "Save food", exact: true }).click();
   await expect(page.getByLabel("Edit Tomatoes", { exact: true })).toHaveCount(
@@ -161,12 +161,12 @@ test("quick multi-add, filters, confirmed restore and cooking deduction", async 
   await page.getByLabel("Shopping item name").fill("Onion");
   await page.getByRole("button", { name: "Add to list" }).click();
   await page.getByLabel("Edit Onion", { exact: true }).fill("Red onion");
-  await page.getByRole("heading").click();
+  await page.getByRole("heading", { level: 1 }).click();
   await expect(
     page.getByLabel("Edit Red onion", { exact: true }),
   ).toBeVisible();
   await page.getByLabel("Quantity for Red onion").fill("2 pieces");
-  await page.getByRole("heading").click();
+  await page.getByRole("heading", { level: 1 }).click();
   await expect(
     page.getByLabel("Edit Red onion", { exact: true }),
   ).toBeVisible();
