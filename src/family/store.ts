@@ -152,7 +152,8 @@ class KitchenStore {
     const { data, error } = await supabase
       .from("households")
       .select("id,name,owner_id")
-      .order("created_at");
+      .order("created_at")
+      .retry(false);
     if (error) {
       this.emit({ error: `Could not load family: ${error.message}` });
       return;
@@ -348,9 +349,11 @@ class KitchenStore {
     try {
       let turns = 0;
       do {
-        const { data: s, error } = await supabase.rpc("household_snapshot", {
-          h: h.id,
-        });
+        const { data: s, error } = await supabase
+          .rpc("household_snapshot", {
+            h: h.id,
+          })
+          .retry(false);
         if (error) throw error;
         if (epoch !== this.epoch) return;
         const confirmed = fromSnapshot(
@@ -364,6 +367,7 @@ class KitchenStore {
           queue: [],
         };
         this.cache.confirmed = confirmed;
+        this.cache.revocationBackup = undefined;
         const applied = overlay(confirmed, this.cache.queue);
         this.cache.data = {
           ...applied.data,
@@ -389,11 +393,13 @@ class KitchenStore {
         }
         const op = this.cache.queue[0];
         if (!op) break;
-        const result = await supabase.rpc("apply_household_changes", {
-          h: h.id,
-          operation: op.id,
-          changes: JSON.parse(JSON.stringify(op.changes)),
-        });
+        const result = await supabase
+          .rpc("apply_household_changes", {
+            h: h.id,
+            operation: op.id,
+            changes: JSON.parse(JSON.stringify(op.changes)),
+          })
+          .retry(false);
         if (result.error) throw result.error;
         if (result.data.conflict) {
           this.cache.conflict = {
@@ -425,11 +431,27 @@ class KitchenStore {
           ? e.message
           : ((e as { message?: string }).message ?? "Connection interrupted.");
       const locked = /access denied|permission denied/i.test(message);
+      let backupWarning = "";
+      if (locked && this.cache?.queue.length && !this.cache.revocationBackup) {
+        try {
+          this.cache.revocationBackup = await preserveBackup(
+            this.cache.data,
+            "Pending proposal — household access revoked",
+            this.view.session?.user.id,
+          );
+          await this.persist();
+        } catch {
+          backupWarning =
+            " Download your retained proposal now; extra backup storage was unavailable.";
+        }
+      }
+
       this.emit({
         state: locked ? "locked" : navigator.onLine ? "error" : "offline",
         data: locked ? emptyData() : this.view.data,
         error: locked
-          ? "Household access is no longer available. Cached records and pending changes are preserved privately on this device."
+          ? "Household access is no longer available. Pending changes are preserved privately on this device." +
+            backupWarning
           : `${message} Pending changes are retained and will retry.`,
       });
     }
@@ -538,6 +560,14 @@ class KitchenStore {
     localStorage.removeItem("eatfirst-invite");
     await this.loadHouseholds();
     await this.select(data);
+  }
+  pendingProposal() {
+    return this.cache &&
+      this.view.session &&
+      this.view.household &&
+      this.cache.id === this.scopeKey(this.view.household.id)
+      ? structuredClone(this.cache.data)
+      : undefined;
   }
   finishRecovery() {
     this.emit({ recovery: false });

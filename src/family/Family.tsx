@@ -112,7 +112,7 @@ export function Family() {
           rows.filter((b) => !b.owner || b.owner === state.session?.user.id),
         ),
       );
-  }, [message, confirm, state.session?.user.id]);
+  }, [message, confirm, state.session?.user.id, state.state]);
   async function authenticate(e: FormEvent<HTMLFormElement>) {
     e.preventDefault();
     const fd = new FormData(e.currentTarget);
@@ -412,6 +412,26 @@ export function Family() {
                   onClick={() => kitchen.requestSync()}
                 >
                   <RefreshCw size={18} />
+                </button>
+              </div>
+            )}
+            {state.state === "locked" && state.pending > 0 && (
+              <div className="banner">
+                <p>
+                  Your pending edits remain on this device. Export them before
+                  switching kitchens or clearing browser data.
+                </p>
+                <button
+                  onClick={() => {
+                    const proposal = kitchen.pendingProposal();
+                    if (proposal)
+                      downloadJSON(
+                        proposal,
+                        "eatfirst-revoked-access-pending-proposal.json",
+                      );
+                  }}
+                >
+                  Export retained pending changes
                 </button>
               </div>
             )}

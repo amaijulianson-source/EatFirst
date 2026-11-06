@@ -5,7 +5,7 @@ Production V1 is preserved until the V2 candidate passes its checks and the rele
 ## Executed checks
 
 - Lint and TypeScript checking passed.
-- 37 unit tests passed, including an actual IndexedDB V1→V2 upgrade fixture retaining the unchanged original kitchen, per-record diffs, sequential offline replay, stale-edit detection, migration deduplication, retained backups and shopping purchase history.
+- 38 unit tests passed, including an actual IndexedDB V1→V2 upgrade fixture retaining the unchanged original kitchen, per-record diffs, sequential offline replay, stale-edit detection, migration deduplication, retained backups and shopping purchase history.
 - Independent PostgreSQL tests passed: RLS enabled on all exposed tables; anonymous and cross-household access denied; direct writes denied even to owners; owner/member controls; restricted and single-use invitations; revocation; atomic conflict rejection; duplicate operation acknowledgements; removed-member access denial. The narrowly scoped cleanup SQL was also tested to preserve non-test users and households.
 - The reproducible local stack (`npm run test:family-local`) passed using actual GoTrue Auth, PostgREST, PostgreSQL and Mailpit, without the oversized full Supabase development image. It verified signup, password login, token refresh, logout, email confirmation with PKCE, session persistence, password recovery/update and login with the changed password.
 - Two local browser profiles passed household creation, invitation acceptance, confirmed local migration, inventory and shopping sharing via reconnect/refetch fallback, offline editing + cached reload + reconnection, frequently bought history and atomic shopping-to-inventory transfer. The original local kitchen was present after logout.
@@ -28,3 +28,11 @@ Existing V1 backups remain accepted. V2 keeps the original `state/main` record a
 ## Cleanup
 
 The owner must run `docs/CLEANUP_TEST_ACCOUNTS.sql` in the hosted SQL Editor after all hosted tests. It removes only the agreed three accounts and their test households, with safeguards against unexpected names/memberships. Child inventory, shopping, history, frequencies, invitation and operation records cascade. This connection has no privileged hosted admin credentials, so cleanup is not falsely reported as automatic. No test passwords/session tokens are committed.
+
+## Final release hardening
+
+An offline transition now aborts in-flight cloud fetches immediately; the sync coordinator owns retries rather than allowing a REST retry loop to delay local queued edits. A unit regression check covers cancellation. Existing local PostgreSQL security tests and the complete Auth/offline browser stack passed again after this change.
+
+The owner executed the guarded cleanup script and reported `remaining_test_accounts = 0`. An independent login check confirmed all three former test accounts now reject authentication. Hosted fixture households were removed by the same cascading cleanup transaction. The temporary password/config remains ignored and will not ship.
+
+A revoked member with an offline pending edit was also tested: server access was denied, the pending proposal remained exportable, and a private retained backup remained available after switching back to the local kitchen. This avoids stranding unsynchronized work after removal. Local email/PKCE/recovery and the full two-browser stack passed again with that behavior.

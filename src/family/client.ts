@@ -1,4 +1,5 @@
 import { createClient } from "@supabase/supabase-js";
+import { cloudFetch } from "./network";
 const url = import.meta.env.VITE_SUPABASE_URL?.replace(
   /\/rest\/v1\/?$/,
   "",
@@ -13,13 +14,7 @@ export const supabase = cloudConfigured
         detectSessionInUrl: true,
         flowType: "pkce",
       },
-      global: {
-        fetch: async (input, init) =>
-          fetch(input, {
-            ...init,
-            signal: init?.signal ?? AbortSignal.timeout(12000),
-          }),
-      },
+      global: { fetch: cloudFetch },
     })
   : null;
 export const appUrl = () =>

@@ -23,6 +23,7 @@ export type ScopeCache = {
   confirmed: Data;
   queue: Operation[];
   migrated?: boolean;
+  revocationBackup?: string;
   conflict?: { operation: string; table: string; key: string };
 };
 const lists = {

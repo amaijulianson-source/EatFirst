@@ -189,3 +189,24 @@ it("upgrades a real V1 IndexedDB fixture without changing its original kitchen",
   upgraded.close();
   await Dexie.delete(name);
 });
+
+describe("network cancellation keeps offline edits responsive", () => {
+  it("aborts an in-flight cloud request as soon as connectivity is lost", async () => {
+    const original = globalThis.fetch;
+    globalThis.fetch = (_input, init) =>
+      new Promise((_resolve, reject) =>
+        init?.signal?.addEventListener("abort", () =>
+          reject(new DOMException("Offline", "AbortError")),
+        ),
+      );
+    try {
+      const { cloudFetch, abortCloudRequests } =
+        await import("../src/family/network");
+      const result = cloudFetch("https://example.invalid");
+      abortCloudRequests();
+      await expect(result).rejects.toMatchObject({ name: "AbortError" });
+    } finally {
+      globalThis.fetch = original;
+    }
+  });
+});

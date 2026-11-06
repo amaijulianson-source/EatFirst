@@ -183,6 +183,37 @@ try {
       ];
     })
     .toEqual([true, false]);
+  // Revoking membership must block online access without stranding offline drafts.
+  await b.goto(`${base}#Inventory`);
+  await cb.setOffline(true);
+  await b.getByRole("button", { name: "Add food", exact: true }).click();
+  await b.getByLabel("Food name").fill("Revoked access draft");
+  await b.getByRole("button", { name: "Save food", exact: true }).click();
+  await expect(
+    b.getByRole("button", { name: /Revoked access draft 1 pieces/ }),
+  ).toBeVisible();
+  const memberUser = (await member.auth.getUser()).data.user;
+  const removed = await owner.rpc("manage_household", {
+    h: house,
+    command: "remove",
+    target: memberUser.id,
+  });
+  assert.equal(removed.error, null);
+  await cb.setOffline(false);
+  await b.goto(`${base}#Family`);
+  await b.evaluate(() => window.dispatchEvent(new Event("focus")));
+  await expect(
+    b.getByRole("button", { name: "Export retained pending changes" }),
+  ).toBeVisible({ timeout: 15000 });
+  const download = b.waitForEvent("download");
+  await b
+    .getByRole("button", { name: "Export retained pending changes" })
+    .click();
+  assert((await download).suggestedFilename().includes("pending-proposal"));
+  await b.getByLabel("Active kitchen").selectOption("");
+  await expect(
+    b.getByText("Pending proposal — household access revoked", { exact: true }),
+  ).toBeVisible();
   await a.goto(`${base}#Family`);
   await a.getByRole("button", { name: "Sign out", exact: true }).click();
   await a.goto(`${base}#Inventory`);
@@ -212,6 +243,7 @@ try {
         offlineQueueReloadReconnect: "passed",
         frequentlyBought: "passed",
         atomicShoppingTransfer: "passed",
+        revokedAccessPendingExport: "passed",
         pageErrors: errors,
         realtimeWebsocket: "separate verification required",
       },
