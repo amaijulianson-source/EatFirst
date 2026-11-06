@@ -376,7 +376,9 @@ export function makeDraft(
     quantity: q.explicit ? q.quantity : (memory?.quantity ?? 1),
     unit: q.explicit ? q.unit : (memory?.unit ?? "pieces"),
     category: memory?.category ?? n.category,
-    location: memory?.location ?? n.location,
+    location: /\b(?:frozen|diepvries|bevroren)\b/i.test(raw)
+      ? "Freezer"
+      : (memory?.location ?? n.location),
     expiry: "",
     barcode: memory?.barcode,
     dateType:
