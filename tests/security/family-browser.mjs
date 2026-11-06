@@ -1,4 +1,4 @@
-/* global console, window, navigator, Event */
+/* global console, window, navigator, Event, localStorage */
 import { Buffer } from "node:buffer";
 import { createHmac, randomUUID } from "node:crypto";
 import assert from "node:assert/strict";
@@ -54,10 +54,21 @@ try {
   await a.getByLabel("Food name").fill("Legacy banana");
   await a.getByRole("button", { name: "Save food", exact: true }).click();
   async function login(page, account) {
+    // Real local GoTrue session fixture. This verifies app sessions and sharing;
+    // it does not claim to exercise Google's external login screen.
+    const { data, error } = await account.client.auth.signInWithPassword({
+      email: account.email,
+      password,
+    });
+    assert.equal(error, null);
+    await page.goto(base);
+    await page.evaluate(
+      (session) =>
+        localStorage.setItem("sb-127-auth-token", JSON.stringify(session)),
+      data.session,
+    );
     await page.goto(`${base}#Family`);
-    await page.getByLabel("Email", { exact: true }).fill(account.email);
-    await page.getByLabel("Password", { exact: true }).fill(password);
-    await page.getByRole("button", { name: "Sign in", exact: true }).click();
+    await page.reload();
     await page.getByText(account.email, { exact: true }).waitFor();
   }
   await login(a, accounts[0]);

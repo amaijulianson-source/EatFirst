@@ -17,13 +17,13 @@ A private kitchen companion for using food before it goes to waste. Use a local 
 ## Start your family kitchen
 
 1. Open EatFirst from its installed home-screen icon. Use **Family** (people icon in the header, or Family & sync in the desktop sidebar).
-2. Create your own account, confirm your email, and sign in. Open confirmation links in the same browser where possible; if the link opens elsewhere, return to the installed app and sign in after confirmation.
-3. Create a household. Its creator is the owner; every member uses their own account and password.
+2. Choose **Continue with Google**, then select your own Google account. No EatFirst password or signup email is needed.
+3. Create a household. Its creator is the owner; every member uses their own Google account.
 4. To bring existing groceries across, choose **Review local migration** and confirm. Your original local kitchen stays intact and a dated local backup is saved. Migration adds inventory, shopping, activity and purchase history, skips matching IDs/duplicate active shopping names, and blocks differing records with matching IDs for review. It does not replace household pantry settings.
-5. **Create invitation link**, preferably restricted to the recipient's email. Share it privately. It expires after 48 hours and works once. The family member opens it, signs in/creates their own account and accepts. Reopen the invitation after email confirmation if necessary.
+5. **Create invitation link**, preferably restricted to the recipient's email. Share it privately. It expires after 48 hours and works once. The family member opens it, signs in with their own Google account and accepts. The app retains the invitation while you sign in on the same device.
 6. Select the household to share inventory, shopping, quantities, date fields, activity and relevant preferences. Owners can rename it, revoke invitations and remove members. Switching to **On this device · local kitchen** or signing out restores the original local kitchen.
 
-Email confirmation stays enabled. Supabase's default email service may restrict recipients and rate-limit signup/recovery messages. The project owner must configure a suitable SMTP provider if needed for family delivery. No SMTP credential belongs in GitHub/Vite or chat. Password recovery works through **Forgot password?**; open the recovery email in the browser where the request was started (use Safari/Chrome for recovery if the installed app's storage is separate).
+Google handles identity verification and account recovery; EatFirst does not ask for a Google password. No SMTP provider is needed. The project owner must first configure [Google OAuth](docs/GOOGLE_AUTH_SETUP.md) in Google Cloud and Supabase. Google credentials belong only in Supabase's provider settings. V2 stays on its feature branch until actual Google sign-in is verified; the public link still serves V1.
 
 ## Install
 
@@ -73,7 +73,7 @@ npm run build
 
 Copy `.env.example` to `.env.local` for optional cloud features. Use the Supabase project root URL and publishable key. All `.env*.local` files and generated output are ignored; never commit privileged credentials.
 
-`test:security` uses an isolated PostgreSQL container and exercises RLS/RPCs. `test:family-local` creates disposable Auth/REST/database/mail containers and browser fixtures, tests confirmation/recovery and two-device offline/refetch behavior, then cleans up its own services. It needs free loopback ports 4179, 4182, 54325–54330. It does not connect to the real Supabase project. Real hosted realtime/isolation tests are documented in [V2 verification](docs/V2_VERIFICATION.md); temporary test-user passwords/tokens are not committed or placed in CI.
+`test:security` uses an isolated PostgreSQL container and exercises RLS/RPCs. `test:family-local` creates disposable Auth/REST/database/mail containers and browser fixtures, tests Google OAuth request/PKCE contracts, real GoTrue callback/session persistence/logout, and two-device offline/refetch behavior, then cleans up its own services. It needs free loopback ports 4179, 4182, 54325–54330. It does not connect to the real Supabase project. Real hosted realtime/isolation tests are documented in [V2 verification](docs/V2_VERIFICATION.md); temporary test-user passwords/tokens are not committed or placed in CI.
 
 To test the public release without changing server data:
 

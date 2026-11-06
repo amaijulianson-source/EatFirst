@@ -2249,3 +2249,32 @@ dialog::backdrop {
     max-width: 100px;
   }
 }
+
+.google-signin {
+  background: #fff;
+  border: 1px solid #747775;
+  color: #1f1f1f;
+  min-height: 52px;
+  gap: 12px;
+  margin: 24px 0 16px;
+  font-weight: 600;
+}
+.google-signin:hover:not(:disabled) {
+  background: #f2f6f3;
+  border-color: #1f5d45;
+}
+.google-signin svg {
+  flex-shrink: 0;
+}
+.auth-reassurance {
+  display: flex;
+  gap: 9px;
+  text-align: left;
+  align-items: flex-start;
+  font-size: 0.85rem;
+  margin: 24px 0 16px;
+  color: var(--muted);
+}
+.auth-reassurance svg {
+  flex-shrink: 0;
+}

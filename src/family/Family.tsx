@@ -1,4 +1,4 @@
-import { useEffect, useState, useRef, type FormEvent } from "react";
+import { useEffect, useState } from "react";
 import {
   Users,
   UserPlus,
@@ -9,9 +9,9 @@ import {
   Download,
   RefreshCw,
   LogOut,
-  ArrowRight,
 } from "lucide-react";
-import { supabase, cloudConfigured, appUrl } from "./client";
+import { supabase, cloudConfigured, appUrl, authCallbackError } from "./client";
+import { beginGoogleSignIn, googleDisplayName } from "./oauth";
 import { kitchen } from "./store";
 import { useKitchen } from "./useKitchen";
 import { db, readData } from "../db";
@@ -36,10 +36,8 @@ type Invitation = {
 };
 export function Family() {
   const state = useKitchen();
-  const authForm = useRef<HTMLFormElement>(null);
-  const [mode, setMode] = useState<"login" | "signup">("login"),
-    [message, setMessage] = useState(""),
-    [error, setError] = useState(""),
+  const [message, setMessage] = useState(""),
+    [error, setError] = useState(authCallbackError),
     [busy, setBusy] = useState(false),
     [members, setMembers] = useState<Member[]>([]),
     [invites, setInvites] = useState<Invitation[]>([]),
@@ -113,36 +111,6 @@ export function Family() {
         ),
       );
   }, [message, confirm, state.session?.user.id, state.state]);
-  async function authenticate(e: FormEvent<HTMLFormElement>) {
-    e.preventDefault();
-    const fd = new FormData(e.currentTarget);
-    await run(async () => {
-      if (!supabase) throw Error("Supabase is not configured.");
-      const email = String(fd.get("email")).trim(),
-        password = String(fd.get("password"));
-      const result =
-        mode === "signup"
-          ? await supabase.auth.signUp({
-              email,
-              password,
-              options: {
-                emailRedirectTo: appUrl(),
-                data: {
-                  display_name: String(
-                    fd.get("display") ?? "Family member",
-                  ).trim(),
-                },
-              },
-            })
-          : await supabase.auth.signInWithPassword({ email, password });
-      if (result.error) throw result.error;
-      setMessage(
-        mode === "signup"
-          ? "Check your email to confirm your account, then return to Family and sign in. Open the confirmation link in the same browser when possible."
-          : "Signed in. Choose or create your household below.",
-      );
-    });
-  }
   return (
     <>
       <div className="page-heading">
@@ -172,49 +140,12 @@ export function Family() {
           </p>
         </div>
       )}
-      {state.recovery && state.session && (
-        <section className="panel padded">
-          <h2>Choose a new password</h2>
-          <form
-            onSubmit={(e) => {
-              e.preventDefault();
-              const fd = new FormData(e.currentTarget);
-              void run(async () => {
-                const { error } = await supabase!.auth.updateUser({
-                  password: String(fd.get("newPassword")),
-                });
-                if (error) throw error;
-                kitchen.finishRecovery();
-                setMessage("Password updated.");
-              });
-            }}
-          >
-            <label>
-              New password
-              <input
-                name="newPassword"
-                type="password"
-                autoComplete="new-password"
-                minLength={10}
-                required
-              />
-            </label>
-            <button className="btn primary" disabled={busy}>
-              Update password
-            </button>
-          </form>
-        </section>
-      )}
       {!state.session ? (
         <section className="panel padded auth-panel">
           <span className="empty-icon">
             <Users size={29} />
           </span>
-          <h2>
-            {mode === "login"
-              ? "Welcome to the family kitchen"
-              : "Make room for everyone"}
-          </h2>
+          <h2>Welcome to the family kitchen</h2>
           <p className="muted">
             Keep using EatFirst locally, or sign in to share groceries across
             phones. Your existing local food stays on this device until you
@@ -226,99 +157,48 @@ export function Family() {
               it.
             </div>
           )}
-          <div className="chips" role="tablist" aria-label="Account access">
-            {(["login", "signup"] as const).map((m) => (
-              <button
-                key={m}
-                role="tab"
-                aria-selected={mode === m}
-                className={mode === m ? "selected" : ""}
-                onClick={() => setMode(m)}
-              >
-                {m === "login" ? "Sign in" : "Create account"}
-              </button>
-            ))}
-          </div>
-          <form ref={authForm} onSubmit={authenticate}>
-            {mode === "signup" && (
-              <label>
-                Your display name
-                <input
-                  name="display"
-                  autoComplete="nickname"
-                  required
-                  maxLength={80}
-                />
-              </label>
-            )}
-            <label>
-              Email
-              <input
-                name="email"
-                type="email"
-                autoComplete="email"
-                required
-                maxLength={254}
-              />
-            </label>
-            <label>
-              Password
-              <input
-                name="password"
-                type="password"
-                autoComplete={
-                  mode === "signup" ? "new-password" : "current-password"
-                }
-                minLength={mode === "signup" ? 10 : 1}
-                required
-              />
-            </label>
-            {mode === "signup" && (
-              <p className="muted small">
-                Use at least 10 characters. Confirm your email before signing
-                in.
-              </p>
-            )}
-            <button
-              className="btn primary full"
-              disabled={busy || !cloudConfigured}
-            >
-              {busy
-                ? "Please wait…"
-                : mode === "signup"
-                  ? "Create account"
-                  : "Sign in"}
-              <ArrowRight size={17} />
-            </button>
-          </form>
           <button
-            className="text-btn"
+            type="button"
+            className="btn google-signin full"
             disabled={busy || !cloudConfigured}
             onClick={() =>
-              run(async () => {
-                const input = authForm.current?.elements.namedItem(
-                  "email",
-                ) as HTMLInputElement | null;
-                if (!input || !input.checkValidity()) {
-                  input?.reportValidity();
-                  throw Error("Enter your email address first.");
-                }
-                const { error } = await supabase!.auth.resetPasswordForEmail(
-                  input.value.trim(),
-                  { redirectTo: appUrl() },
-                );
-                if (error) throw error;
-                setMessage(
-                  "If an account exists, a recovery email will arrive. Open it in this browser.",
-                );
-              })
+              void run(() => beginGoogleSignIn(supabase, appUrl()))
             }
           >
-            Forgot password?
+            <svg aria-hidden="true" viewBox="0 0 48 48" width="22" height="22">
+              <path
+                fill="#EA4335"
+                d="M24 9.5c3.54 0 6.71 1.22 9.21 3.6l6.85-6.85C35.9 2.38 30.47 0 24 0 14.62 0 6.51 5.38 2.56 13.22l7.98 6.19C12.43 13.72 17.74 9.5 24 9.5Z"
+              />
+              <path
+                fill="#4285F4"
+                d="M46.98 24.55c0-1.57-.15-3.09-.38-4.55H24v9.02h12.94c-.58 2.96-2.26 5.48-4.78 7.18l7.73 6c4.51-4.18 7.09-10.36 7.09-17.65Z"
+              />
+              <path
+                fill="#FBBC05"
+                d="M10.53 28.59A14.4 14.4 0 0 1 9.75 24c0-1.59.27-3.13.76-4.59l-7.98-6.19A23.9 23.9 0 0 0 0 24c0 3.87.93 7.53 2.56 10.78l7.97-6.19Z"
+              />
+              <path
+                fill="#34A853"
+                d="M24 48c6.48 0 11.93-2.13 15.91-5.8l-7.73-6c-2.15 1.45-4.92 2.3-8.18 2.3-6.26 0-11.57-4.22-13.47-9.91l-7.98 6.19C6.51 42.62 14.62 48 24 48Z"
+              />
+            </svg>
+            {busy ? "Opening Google…" : "Continue with Google"}
           </button>
           <p className="muted small">
-            Your password is handled by Supabase Auth. Never share it with
-            family members.
+            Use your own Google account. No EatFirst password or email signup
+            needed. Google handles account verification and recovery.
+          </p>
+          <div className="auth-reassurance">
+            <ShieldCheck size={19} aria-hidden="true" />
+            <span>
+              Only your name, email and profile photo. No access to Gmail or
+              Google Drive.
+            </span>
+          </div>
+          <p className="muted small">
+            Shared kitchens are private to their members. You choose whether to
+            bring your local groceries into a household after signing in.
           </p>
         </section>
       ) : (
@@ -499,7 +379,7 @@ export function Family() {
                   <input
                     name="name"
                     defaultValue={String(
-                      state.session.user.user_metadata.display_name ?? "",
+                      googleDisplayName(state.session.user.user_metadata),
                     )}
                     required
                     maxLength={80}
@@ -545,7 +425,7 @@ export function Family() {
                   <input
                     name="name"
                     defaultValue={String(
-                      state.session.user.user_metadata.display_name ?? "",
+                      googleDisplayName(state.session.user.user_metadata),
                     )}
                     maxLength={80}
                     required

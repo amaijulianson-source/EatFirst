@@ -1,3 +1,7 @@
+# Superseded: Google OAuth selected
+
+The owner selected Google sign-in. SMTP is no longer required for EatFirst authentication or shareable invitation links. See [Google setup](GOOGLE_AUTH_SETUP.md). The comparison below is historical research, not the current setup recommendation.
+
 # Free authentication email options for EatFirst V2
 
 Researched from official documentation on 2026-11-06. No purchase, provider signup, production change or V2 deployment was made during this research.

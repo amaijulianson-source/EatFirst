@@ -12,15 +12,7 @@ Use GitHub’s **Raw** button to copy the SQL. It creates household tables, RLS 
 
 ## Authentication
 
-Authentication → URL Configuration:
-
-- Site URL: `https://amaijulianson-source.github.io/EatFirst/`
-- Allowed redirect URL: `https://amaijulianson-source.github.io/EatFirst/`
-- Email/password signups enabled. Keep email confirmation enabled on the real project.
-
-For local verification only, temporarily add `http://localhost:4179/` to allowed redirect URLs if requested. The local Supabase test instance is separate and does not require changing hosted email-confirmation settings.
-
-Supabase’s default email provider may rate-limit messages or restrict recipient delivery. Configure your own SMTP provider later if family signup emails do not arrive; no paid service is required by the app. Never turn off household RLS or expose a service-role key to work around an error.
+Use **Google OAuth** for the family's accounts. Follow the exact owner-only Google Cloud and Supabase setup in [GOOGLE_AUTH_SETUP.md](GOOGLE_AUTH_SETUP.md). The previous email/SMTP setup is superseded. Keep email provider settings unchanged until Google login is verified, then disable the Email provider, not global signup. RLS stays enabled.
 
 ## Frontend configuration
 
@@ -36,7 +28,7 @@ These values are public browser configuration, not privileged credentials. Servi
 ## Release gates
 
 - Local PostgreSQL isolation tests and local Supabase auth/integration tests must pass.
-- Hosted migration must be installed, and real-project email confirmation/login and two-family isolation must be verified.
+- Hosted migration must be installed, and real-project Google OAuth login and two-family isolation must be verified.
 - Owner/member invitation, removal, shopping/inventory realtime, conflicts, idempotent retries, offline reload/reconnect and confirmed legacy migration must pass.
 - V1 local data must survive database version upgrade; the local `state/main` kitchen is never replaced by cloud data.
 - Production build and PWA checks must pass before any merge/default-branch push or deployment.
