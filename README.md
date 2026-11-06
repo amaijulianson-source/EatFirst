@@ -1,123 +1,110 @@
 # EatFirst
 
-A private, offline kitchen companion that helps households use what they have. No account, backend, API key, paid service, analytics, or remote images.
+**https://amaijulianson-source.github.io/EatFirst/**
 
-## Features
+A private kitchen companion for using food before it goes to waste. Use a local kitchen without an account, or opt into a shared household with separate family accounts. GitHub Pages hosts the static PWA; optional Supabase Free provides Auth, PostgreSQL and Realtime.
 
-- Today dashboard: due-today and next-three-day summaries, priority groceries, recently added food, and meal suggestions.
-- Inventory: quick add and save-and-add-another, edit, remaining quantities, categories, storage locations, optional package date and notes, optional estimated total value, search/filter/sort, confirmed removal with undo, and partial eaten/used/discarded records.
-- Local calendar expiry logic across month/year boundaries. Separate use-by and best-before language. Past-date food is excluded from automatic recipe matching; use-by is always a safety deadline.
-- 27 curated offline recipes with steps, approximate quantities, times and reliable dietary tags. Explicit ingredient aliases, editable staple assumptions, availability/urgency/missing/time ranking, missing ingredients to shopping, and user-confirmed deductions in inventory units.
-- Shopping: add, inline edit name and quantity/note (saved on blur), check, remove, and transfer to inventory with a date prompt.
-- Waste: calendar-week and month discard counts, six-month chart, category breakdown, history, and actual recorded estimated waste value only.
-- Settings: light/dark/device theme, vegetarian/vegan/gluten-free filters, pantry staples, currency, complete JSON export, validated replacement import with confirmation, confirmed deletion, and an explicitly labelled optional sample kitchen.
-- Local privacy page, responsive desktop/sidebar and mobile/bottom navigation, keyboard-accessible dialogs, reduced-motion styling, local app illustrations, and installable PWA icons.
+## Everyday features
 
-## Stack and structure
+- Today dashboard, date-aware inventory, search/category/storage/expiry filters, quick multi-add and partial eaten/used/discarded tracking.
+- Safety-related use-by dates kept distinct from quality-related best-before dates. No invented expiry dates or freshness predictions; past-date foods are excluded from automatic recipes.
+- 27 offline recipes with explicit ingredient aliases, adjustable pantry assumptions, missing ingredients to shopping and confirmed inventory deductions.
+- Shopping mode, priorities, categories, notes, search, purchase history/frequently bought items and purchased-to-inventory transfer. Transfer prompts for package dates and changes both records atomically in a household.
+- Waste history/charts and recorded estimated values only; no fabricated savings or environmental claims.
+- Light/dark/device appearance, accessible responsive layout, mobile bottom navigation, local illustrations/icons, installable PWA and offline application cache.
+- JSON backup export/validated replacement import and explicitly labelled local sample mode.
 
-React 19, TypeScript, Vite, Dexie/IndexedDB, Lucide icons, maintainable plain CSS, vite-plugin-pwa/Workbox, Vitest, fake-indexeddb, Playwright. See package-lock.json for exact resolved versions.
+## Start your family kitchen
 
-- `src/core.ts`: typed model, date math, consumption, waste, shopping, backup validation.
-- `src/db.ts`: IndexedDB repository, version 1 schema. Future schema changes must introduce a Dexie version migration and corresponding backup schema migration; unsupported backup versions are rejected.
-- `src/recipes.ts`: curated recipes, explicit normalization and ranking.
-- `src/App.tsx`: application views, dialogs and persistence coordinator.
-- `src/style.css`: responsive design system, themes and local CSS food illustration.
-- `tests/`: business/persistence unit tests and browser workflows.
+1. Open EatFirst from its installed home-screen icon. Use **Family** (people icon in the header, or Family & sync in the desktop sidebar).
+2. Choose **Continue with Google**, then select your own Google account. No EatFirst password or signup email is needed.
+3. Create a household. Its creator is the owner; every member uses their own Google account.
+4. To bring existing groceries across, choose **Review local migration** and confirm. Your original local kitchen stays intact and a dated local backup is saved. Migration adds inventory, shopping, activity and purchase history, skips matching IDs/duplicate active shopping names, and blocks differing records with matching IDs for review. It does not replace household pantry settings.
+5. **Create invitation link**, preferably restricted to the recipient's email. Share it privately. It expires after 48 hours and works once. The family member opens it, signs in with their own Google account and accepts. The app retains the invitation while you sign in on the same device.
+6. Select the household to share inventory, shopping, quantities, date fields, activity and relevant preferences. Owners can rename it, revoke invitations and remove members. Switching to **On this device · local kitchen** or signing out restores the original local kitchen.
 
-## Local development
+Google handles identity verification and account recovery; EatFirst does not ask for a Google password. No SMTP provider is needed. The project owner must first configure [Google OAuth](docs/GOOGLE_AUTH_SETUP.md) in Google Cloud and Supabase. Google credentials belong only in Supabase's provider settings. The owner verified Google sign-in, persistent sessions, household creation, invitations and live shared groceries/shopping in the isolated preview before approving production release.
 
-Node 22.12+ (tested with Node 24), npm.
+## Install
+
+- **iPhone:** Open the public link in Safari → Share → Add to Home Screen → Open as Web App if offered → Add.
+- **Android:** Open in Chrome → ⋮ → Install app / Add to Home screen → Install.
+
+Let the first online load finish. If an old installed version remains visible, close all EatFirst windows/tabs and reopen. **Do not clear browser storage to update:** it may hold the original kitchen, pending changes or preserved backups.
+
+Physical-device installation is not claimed as tested; browser labels and standalone behavior vary. There are no automatic background expiry alerts. Open Today for date priorities.
+
+## Sync, privacy and conflicts
+
+A household edit is a durable, per-record change batch with a unique operation ID and expected prior record values. A database transaction checks membership, locks the household, compares expected values, applies all changes or none, and records the operation once. Repeated requests acknowledge the same operation rather than repeating consumption. Conflicting edits do not silently overwrite a family member's work.
+
+Realtime signals trigger atomic household refetches. Reconnect, focus, successful subscription and a visible-page periodic refresh also retry/refetch. Offline edits stay in an IndexedDB queue scoped to the authenticated user and household. Previously authenticated devices can display their cache offline; authentication or expired-session recovery can require going online.
+
+**Family** shows synced/pending/offline/error/conflict states. Conflicts retain the local proposal. Export it or explicitly keep the shared version: a dated proposal backup and operation archive are preserved first. Re-enter any intended changes from that backup. Later queued edits are preserved with the proposal, not silently replayed over a conflict.
+
+Modern browsers permit one active editor tab per browser profile to prevent local queue races. Another tab shows a read-only notice; close the editor and reload the other tab to use it. Different family phones have independent queues. Use one editor tab in browsers without Web Locks support.
+
+RLS protects every exposed table. Normal clients cannot directly write tables, including owners; checked RPCs control mutations, invitations and membership management. Invitation tokens are random, hashed in PostgreSQL and validated for email restriction, expiry, revocation and reuse. Only owners manage membership. Publishable/anon keys are intentionally public; secret/service-role keys are never included in the frontend.
+
+Local mode uploads no groceries. Family mode stores shared records and account information with Supabase and caches household records on devices. Logged-out UI does not show the household cache, but the browser is **not an encrypted vault**. Already-downloaded records cannot be remotely erased from an offline device after removal; online access is rechecked on refetch. Use trusted browser profiles. No analytics or advertising is included.
+
+## Data and backups
+
+IndexedDB schema version 2 adds `caches` and `backups` while retaining V1 `state/main` unchanged. Cloud data never replaces that legacy record. Backups retain the portable version-1 data format, with optional new shopping/purchase-history fields; old V1 exports remain accepted. Theme is per-device; household pantry/diet/currency preferences synchronize.
+
+Export regularly. Import replaces the **active** kitchen after confirmation; in family mode it affects all members and preserves a local backup first. Sample loading and local data deletion are disabled while a household is active. Preserved backups are available in Family. Browser clearing, eviction, private browsing and device loss can erase local-only data and pending edits. There is no server backup of an edit until it synchronizes.
+
+## Development and tests
+
+Node 24, npm, and Chromium. Docker is needed for independent database/Auth integration tests.
 
 ```sh
-cd /workspace/eatfirst
 npm ci
 npm run dev
-```
-
-Open http://localhost:5173. Actual inventory starts empty. In Settings choose **Try sample kitchen** to explore, then **Reset demo** to clear it. Sample mode can only begin from an entirely empty kitchen/list/history to avoid mixing real and example data.
-
-## Checks
-
-```sh
 npm run lint
 npm run typecheck
 npm test
-TZ=Pacific/Honolulu npm test
-TZ=Pacific/Kiritimati npm test
+npm run test:security
 npx playwright install chromium
+npm run test:family-local
 npm run test:e2e
 npm run build
-npm run preview -- --port 4173
 ```
 
-Playwright tests use the production build at port 4175 in desktop Chromium and mobile-size Chromium. They cover empty states, add/edit/consume/discard/remove, shopping transfer, persistence after reload, recipe steps, backup export/invalid rejection, themes and offline reload. This is mobile viewport emulation, not a physical-device Safari test.
+Copy `.env.example` to `.env.local` for optional cloud features. Use the Supabase project root URL and publishable key. All `.env*.local` files and generated output are ignored; never commit privileged credentials.
 
-## Build and deployment
+`test:security` uses an isolated PostgreSQL container and exercises RLS/RPCs. `test:family-local` creates disposable Auth/REST/database/mail containers and browser fixtures, tests Google OAuth request/PKCE contracts, real GoTrue callback/session persistence/logout, and two-device offline/refetch behavior, then cleans up its own services. It needs free loopback ports 4179, 4182, 54325–54330. It does not connect to the real Supabase project. Real hosted realtime/isolation tests are documented in [V2 verification](docs/V2_VERIFICATION.md); temporary test-user passwords/tokens are not committed or placed in CI.
 
-```sh
-npm run build
-```
-
-Upload **the contents of `dist/`** to any HTTPS static host. Hash navigation and the configured production base path support repository subpaths without server rewrite rules. HTTPS (or localhost) is required for service workers and installability. No backend needed.
-
-### GitHub Pages (free for a public repository)
-
-Repository: https://github.com/amaijulianson-source/EatFirst
-
-**Live app: https://amaijulianson-source.github.io/EatFirst/**
-
-The repository uses `main`, and deployment runs automatically on default-branch updates. To configure the same setup in another repository:
-
-1. Create/select a GitHub repository and push **the contents of this directory as its root**.
-2. In repository Settings → Pages, select **GitHub Actions** as the source.
-3. In Actions, manually run **Deploy EatFirst to GitHub Pages**. The workflow runs lint, typecheck, unit tests and build, then publishes `dist/`.
-
-The workflow deploys automatically on updates to the repository’s existing default branch, and can also be started manually. Other branches do not deploy. The production build uses the exact repository name from GitHub to set its base URL, manifest ID/scope/start URL and service-worker scope. No credentials are included. Alternatively upload `dist/` through Cloudflare Pages Direct Upload on its free plan. This deployment uses the public EatFirst repository only.
-
-## Backup and restore
-
-Settings → Export JSON backup downloads all inventory, shopping, activity, preferences and sample-mode state. Backups are plain JSON, not encrypted. Keep them private. Import accepts at most 10 MB, validates version, dates, enums, finite nonnegative quantities/values, records and IDs, then presents a replacement confirmation. Import replaces the full kitchen; export the current one first. Malformed files never change saved state.
-
-## Persistence, privacy and PWA
-
-All user data lives in this browser profile's IndexedDB. The app has no user-data server or sync. Storage clearing, private mode, device loss and browser eviction can erase data. Export regularly; use one open tab for editing to avoid concurrent tabs overwriting each other's snapshots. Storage failures show an error and do not apply the attempted change to the UI. Switching domains or browser profiles creates a separate kitchen.
-
-The service worker precaches the app shell and recipe collection. Offline works after a successful initial load/cache. On update, the current app remains active and a notice asks you to close all EatFirst tabs and reopen. No forced reload during editing. Installation uses the browser menu when supported. There are no automatic background expiry alerts; open Today to review dates.
-
-## Limits and food safety
-
-- Inventory is manually entered, with no barcode database, freshness prediction or guessed exact dates.
-- Ingredient availability uses explicit aliases, not fuzzy guesses. Quantities are approximate recipe guidance and are not automatically verified; deduction is optional and manually confirmed. Only known aliases match (for example, organic eggs require naming them Eggs for matching).
-- Past best-before food is kept separate and excluded from recipe matching conservatively. This does not mean all such food is unsafe, or that in-date food is guaranteed safe. Follow storage instructions and local guidance. Use-by is safety-related: do not consume after it.
-- Dietary tags are recipe filters, not allergen guarantees. Check actual labels, especially stock, sauces, oats, noodles and packaged beans.
-- Financial totals are estimated values the user entered. Changing currency relabels values without converting them. No money-saved or environmental claims.
-- Waste counts are discard events; a partial discard is one event. They are not comparable weights. Weeks begin Monday.
-- Browser support for install UI, storage persistence and service-worker updates varies. Physical iOS/Android testing remains advisable before a broad release.
-
-## Future enhancements
-
-Additional reviewed recipes and aliases, optional barcode scanning with local lookup, household sharing through an explicitly opt-in service, per-record conflict resolution for multiple open tabs, richer accessible trend comparisons, and a dedicated screen-reader/physical-device audit.
-
-## Verification record
-
-See [VERIFICATION.md](VERIFICATION.md) for commands actually executed, browser coverage, remaining development-tool audit advisories and unverified platforms. Runtime dependency audit reports zero vulnerabilities. Example desktop/mobile/dark screenshots are included in `artifacts/`; the app never loads those examples into a user's inventory automatically.
-
-## Install on your phone
-
-Open https://amaijulianson-source.github.io/EatFirst/ on your phone. Do not install from a ChatGPT in-app webview.
-
-- **iPhone:** Open the link in Safari → Share (square with up arrow) → Add to Home Screen → turn on Open as Web App if offered → Add. Open EatFirst from its home-screen icon. The included 180×180 Apple touch icon and standalone metadata support this flow.
-- **Android:** Open the link in Chrome → menu (⋮) → Install app, or Add to Home screen → Install. Labels vary by browser/device. Open the new EatFirst icon.
-
-Let the first load finish while online before trying airplane mode. Keep regular JSON backups: installed PWAs still rely on browser/device storage. iOS may use a separate storage context for a newly installed home-screen app, so begin entering real groceries after installing, or transfer a backup. Native installation behavior has not been tested on a physical phone.
-
-### Verify the public deployment
+To test the public release without changing server data:
 
 ```sh
 PLAYWRIGHT_BASE_URL=https://amaijulianson-source.github.io/EatFirst/ npm run test:e2e
 EATFIRST_URL=https://amaijulianson-source.github.io/EatFirst/ node tests/pwa-check.mjs
 ```
 
-Preserve the exact `/EatFirst/` capitalization and the trailing slash. Browser tests use isolated profiles and modify only their own local browser data. The additional PWA check validates manifest identity, all icons, Apple icon, service-worker scope, offline home-screen-style launch/refresh, mobile overflow and page errors.
+These use isolated browser profiles and local-mode groceries.
 
-For a local Pages-subdirectory rehearsal, set `BASE_PATH=/Eatfirst/` for **both** `npm run build` and `npm run preview`. Without the environment variable on preview, Vite serves a different mount point. Default development and browser tests continue to use `/`.
+## Architecture
+
+React, TypeScript, Vite, Dexie, Supabase JS, Lucide, plain CSS, Workbox/PWA, Vitest and Playwright. Business logic is separate from UI:
+
+- `src/core.ts`, `src/recipes.ts`: inventory, dates, shopping/history, validated backups and offline recipes.
+- `src/db.ts`: additive IndexedDB migration and preserved backups.
+- `src/family/changes.ts`: per-record diffs, deterministic replay, migration merge and conflict detection.
+- `src/family/store.ts`: authenticated scopes, cache/queue coordinator, realtime/reconnect, retries and resolution.
+- `src/family/Family.tsx`, `ShoppingView.tsx`: family/account and shared shopping workflows.
+- `supabase/migrations/`: reviewed database schema, RLS and transactional functions.
+
+## Configuration and deployment
+
+[Supabase setup](docs/SUPABASE_SETUP.md) covers database installation, Auth redirects and build variables. GitHub repository secrets are `VITE_SUPABASE_URL` and `VITE_SUPABASE_PUBLISHABLE_KEY`. A build check rejects missing values and secret/service-role keys. GitHub Pages uses the exact `/EatFirst/` path for assets, manifest identity, scope, launch URL and service worker; hash navigation supports refresh without rewrites.
+
+The feature branch has a **checks-only** workflow, including the independent database/Auth tests. The Pages workflow deploys default-branch updates after its checks pass. Do not merge a release whose hosted auth/privacy/sync or local-data upgrade gates are incomplete. HTTPS is provided by Pages. No custom domain or paid hosting is required.
+
+For a local subpath rehearsal, set `BASE_PATH=/EatFirst/` on both build and preview. To roll back cloud behavior, retain the V2 database reader and backups; never reset/downgrade the browser database or delete queues as a rollback shortcut.
+
+## Limits and next steps
+
+No barcode lookup, automatic quantity conversion, guaranteed food freshness, background alerts or remote erase. Recipes use approximate quantities and conservative dietary tags; check labels/allergens and storage guidance. Waste counts are discard events; financial totals include only entered estimates, and changing currency relabels values without conversion. Household changes over 5000 record modifications require smaller batches. Account removal and permanent server-side household deletion require the project administrator; membership controls are available in-app.
+
+Future improvements could include richer conflict comparisons, barcode assistance, push alerts where supported, additional reviewed recipes and more physical-device/accessibility testing. See [verification](docs/V2_VERIFICATION.md) for the checks actually executed and genuine remaining limits.

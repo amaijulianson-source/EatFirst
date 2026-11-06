@@ -1,3 +1,4 @@
+import { releasePreview } from "./preview";
 import {
   useEffect,
   useRef,
@@ -36,6 +37,7 @@ import {
   Minus,
   CheckCheck,
   Info,
+  Users,
 } from "lucide-react";
 import {
   addShopping,
@@ -53,8 +55,14 @@ import {
   type Data,
   type Food,
   type Event,
+  type Shopping,
 } from "./core";
-import { readData, saveData } from "./db";
+import { preserveBackup } from "./db";
+import { kitchen } from "./family/store";
+import { useKitchen } from "./family/useKitchen";
+import { Family } from "./family/Family";
+import { ShoppingView } from "./family/ShoppingView";
+import { canonical } from "./family/changes";
 import { matchRecipes, type Recipe } from "./recipes";
 type Page =
   | "Today"
@@ -63,7 +71,8 @@ type Page =
   | "Shopping"
   | "Waste"
   | "Settings"
-  | "Privacy";
+  | "Privacy"
+  | "Family";
 const nav = [
   { name: "Today", icon: LayoutDashboard },
   { name: "Inventory", icon: Refrigerator },
@@ -127,6 +136,7 @@ function Modal({
   );
 }
 export default function App() {
+  const family = useKitchen();
   const [data, setData] = useState<Data | null>(null),
     [page, setPage] = useState<Page>(
       (location.hash.slice(1) as Page) || "Today",
@@ -154,20 +164,12 @@ export default function App() {
     [sort, setSort] = useState("expiry"),
     [recipeFilter, setRecipeFilter] = useState("All"),
     [now, setNow] = useState(localDate()),
-    [undo, setUndo] = useState<Data | null>(null);
+    [undo, setUndo] = useState<Food | null>(null);
   const dataRef = useRef<Data | null>(null);
   const lock = useRef(false);
+  const transferBaseline = useRef<Shopping | null>(null);
+  const formScope = useRef<string>(family.household?.id ?? "local");
   useEffect(() => {
-    readData()
-      .then((d) => {
-        dataRef.current = d;
-        setData(d);
-      })
-      .catch(() =>
-        setError(
-          "Your local database could not be opened. Check browser storage permissions and reload.",
-        ),
-      );
     const timer = setInterval(() => setNow(localDate()), 30000);
     const hash = () => setPage((location.hash.slice(1) as Page) || "Today");
     window.addEventListener("hashchange", hash);
@@ -176,6 +178,18 @@ export default function App() {
       window.removeEventListener("hashchange", hash);
     };
   }, []);
+  useEffect(() => {
+    if (family.data) {
+      dataRef.current = family.data;
+      setData(family.data);
+    }
+  }, [family.data]);
+  useEffect(() => {
+    if (family.recovery) {
+      setPage("Family");
+      location.hash = "Family";
+    }
+  }, [family.recovery]);
   useEffect(() => {
     const t = data?.settings.theme;
     document.documentElement.dataset.theme =
@@ -205,20 +219,33 @@ export default function App() {
     message = "Saved on this device",
     optimistic = false,
   ) {
+    if (
+      (kitchen.getSnapshot().household?.id ?? "local") !==
+      (family.household?.id ?? "local")
+    )
+      throw Error(
+        "The active kitchen changed. Reopen this action in the intended kitchen.",
+      );
     if (lock.current) throw Error("A save is in progress. Please try again.");
     lock.current = true;
     setUndo(null);
     setSaving(true);
     if (optimistic) setData(next);
     try {
-      await saveData(next);
+      await kitchen.save(next, message, data ?? undefined);
       dataRef.current = next;
       setData(next);
-      setNotice(message);
+      setNotice(
+        family.household && message === "Saved on this device"
+          ? "Saved to this device’s family queue"
+          : message,
+      );
     } catch (e) {
       if (optimistic) setData(dataRef.current);
       setError(
-        "Could not save. Your change was not applied. Check available browser storage.",
+        e instanceof Error
+          ? e.message
+          : "Could not save. Your change was not applied. Check Family or browser storage.",
       );
       throw e;
     } finally {
@@ -236,8 +263,8 @@ export default function App() {
       <div className="loading">
         <Leaf size={42} />
         <h1>EatFirst</h1>
-        {error ? (
-          <p role="alert">{error}</p>
+        {error || family.error ? (
+          <p role="alert">{error || family.error}</p>
         ) : (
           <>
             <p>Making room for good food…</p>
@@ -283,6 +310,7 @@ export default function App() {
       currency: d.settings.currency,
     }).format(v);
   function newFood() {
+    formScope.current = family.household?.id ?? "local";
     setTransfer(undefined);
     setFood({});
   }
@@ -292,7 +320,7 @@ export default function App() {
       { ...before, foods: before.foods.filter((x) => x.id !== f.id) },
       `${f.name} removed`,
     );
-    setUndo(before);
+    setUndo(f);
   }
   function foodRow(f: Food) {
     const s = status(f, now);
@@ -303,6 +331,7 @@ export default function App() {
           className="food-main"
           onClick={() => {
             setTransfer(undefined);
+            formScope.current = family.household?.id ?? "local";
             setFood(f);
           }}
         >
@@ -339,6 +368,7 @@ export default function App() {
             title="Edit and more"
             onClick={() => {
               setTransfer(undefined);
+              formScope.current = family.household?.id ?? "local";
               setFood(f);
             }}
           >
@@ -442,11 +472,23 @@ export default function App() {
           ))}
         </nav>
         <div className="sidebar-bottom">
+          <button className="settings-link" onClick={() => go("Family")}>
+            <Users size={20} />
+            Family & sync
+          </button>
           <div className="local-note">
             <ShieldCheck size={20} />
             <div>
-              <strong>Just you & your kitchen</strong>
-              <p>Private. Local. No account needed.</p>
+              <strong>
+                {family.household
+                  ? "Your family kitchen"
+                  : "Just you & your kitchen"}
+              </strong>
+              <p>
+                {family.household
+                  ? "Private to household members."
+                  : "Private. Local. No account needed."}
+              </p>
             </div>
           </div>
           <button
@@ -461,6 +503,16 @@ export default function App() {
         </div>
       </aside>
       <div className="workspace">
+        {releasePreview && (
+          <div className="release-preview-note" role="note">
+            <strong>V2 verification preview</strong>
+            <span>
+              Your local groceries stay separate from the main app. Shared
+              household changes use the real family service.
+            </span>
+            <a href="/EatFirst/">Open main EatFirst</a>
+          </div>
+        )}
         <header className="topbar">
           <span className="breadcrumb">
             Your kitchen <ChevronRight size={14} /> <strong>{page}</strong>
@@ -470,9 +522,20 @@ export default function App() {
             EatFirst.
           </button>
           <div className="top-actions">
+            <button
+              className="icon-btn"
+              aria-label="Family"
+              onClick={() => go("Family")}
+            >
+              <Users size={21} />
+            </button>
             <span className="device-dot" />
             <span className="local-label" role="status">
-              {saving ? "Saving…" : "Saved on this device"}
+              {saving
+                ? "Saving…"
+                : family.household
+                  ? `${family.state} · ${family.pending} pending`
+                  : "Saved on this device"}
             </span>
             <button
               className="icon-btn"
@@ -495,6 +558,24 @@ export default function App() {
             Skip to content
           </a>
           <div id="page-content" tabIndex={-1} />
+          {family.readOnly && (
+            <div className="banner danger">
+              Another EatFirst tab is editing on this device. Use that tab, or
+              close it and reload this one before editing.
+            </div>
+          )}
+          {family.household && (
+            <div
+              className={`banner ${family.state === "conflict" || family.state === "locked" ? "danger" : ""}`}
+            >
+              <Users size={18} />
+              <div>
+                <strong>{family.household.name}</strong> · {family.state} ·{" "}
+                {family.pending} pending{family.error && <p>{family.error}</p>}
+              </div>
+              <button onClick={() => go("Family")}>Family & sync</button>
+            </div>
+          )}
           {d.demo && (
             <div className="banner">
               Sample data mode · Your changes stay on this device.
@@ -692,6 +773,7 @@ export default function App() {
                         key={f.id}
                         onClick={() => {
                           setTransfer(undefined);
+                          formScope.current = family.household?.id ?? "local";
                           setFood(f);
                         }}
                       >
@@ -885,132 +967,19 @@ export default function App() {
             </>
           )}
           {page === "Shopping" && (
-            <>
-              <PageHeading
-                title="A little list. A better shop."
-                sub="Pick up what you need, and make the most of what you have."
-              />
-              <form
-                className="shopping-add panel"
-                onSubmit={async (e) => {
-                  e.preventDefault();
-                  const form = e.currentTarget;
-                  const v = new FormData(form);
-                  const name = String(v.get("name")).trim();
-                  if (name) {
-                    await commit(addShopping(dataRef.current!, [name]));
-                    form.reset();
-                  }
-                }}
-              >
-                <input
-                  name="name"
-                  required
-                  maxLength={100}
-                  placeholder="What do you need?"
-                  aria-label="Shopping item name"
-                />
-                <button className="btn primary" disabled={saving}>
-                  <Plus size={18} />
-                  Add to list
-                </button>
-              </form>
-              <section className="panel">
-                {d.shopping.length
-                  ? d.shopping.map((s) => (
-                      <div
-                        className={`shopping-row ${s.checked ? "checked" : ""}`}
-                        key={s.id}
-                      >
-                        <input
-                          type="checkbox"
-                          aria-label={`Purchased ${s.name}`}
-                          checked={s.checked}
-                          disabled={saving}
-                          onChange={async () => {
-                            await commit(
-                              {
-                                ...d,
-                                shopping: d.shopping.map((x) =>
-                                  x.id === s.id
-                                    ? { ...x, checked: !x.checked }
-                                    : x,
-                                ),
-                              },
-                              "Shopping list updated",
-                              true,
-                            );
-                          }}
-                        />
-                        <div className="shopping-text">
-                          <input
-                            aria-label={`Edit ${s.name}`}
-                            defaultValue={s.name}
-                            key={s.name}
-                            onBlur={async (e) => {
-                              const name = e.target.value.trim();
-                              if (name && name !== s.name)
-                                await commit({
-                                  ...dataRef.current!,
-                                  shopping: dataRef.current!.shopping.map(
-                                    (x) => (x.id === s.id ? { ...x, name } : x),
-                                  ),
-                                });
-                              else e.target.value = s.name;
-                            }}
-                          />
-                          <input
-                            aria-label={`Quantity for ${s.name}`}
-                            placeholder="Add quantity or note"
-                            defaultValue={s.quantity}
-                            onBlur={async (e) => {
-                              if (e.target.value !== s.quantity)
-                                await commit({
-                                  ...dataRef.current!,
-                                  shopping: dataRef.current!.shopping.map(
-                                    (x) =>
-                                      x.id === s.id
-                                        ? { ...x, quantity: e.target.value }
-                                        : x,
-                                  ),
-                                });
-                            }}
-                          />
-                        </div>
-                        <button
-                          className="text-btn"
-                          onClick={() => {
-                            setTransfer(s.id);
-                            setFood({ name: s.name });
-                          }}
-                        >
-                          Put away <ArrowRight size={15} />
-                        </button>
-                        <button
-                          className="icon-btn"
-                          aria-label={`Remove ${s.name} from shopping list`}
-                          onClick={async () => {
-                            await commit({
-                              ...d,
-                              shopping: d.shopping.filter((x) => x.id !== s.id),
-                            });
-                          }}
-                        >
-                          <X size={18} />
-                        </button>
-                      </div>
-                    ))
-                  : empty(
-                      "Room for the essentials",
-                      "Add a grocery here, or send missing ingredients from a recipe straight to your list.",
-                    )}
-              </section>
-              <p className="muted">
-                Use “Put away” when you unpack. You’ll be able to enter the
-                package’s date before adding it to inventory.
-              </p>
-            </>
+            <ShoppingView
+              data={d}
+              saving={saving}
+              commit={commit}
+              putAway={(s) => {
+                setTransfer(s.id);
+                transferBaseline.current = structuredClone(s);
+                formScope.current = family.household?.id ?? "local";
+                setFood({ name: s.name, category: s.category });
+              }}
+            />
           )}
+          {page === "Family" && <Family />}
           {page === "Waste" && (
             <>
               <PageHeading
@@ -1277,9 +1246,10 @@ export default function App() {
                 <section className="panel padded">
                   <h2>Keep a copy</h2>
                   <p>
-                    Everything stays in this browser. Clearing browser data or
-                    changing devices can erase your kitchen. Export a backup
-                    regularly.
+                    Local mode stays in this browser. A selected family kitchen
+                    is shared through Supabase and cached here. Export backups
+                    regularly; pending changes and preserved backups can be lost
+                    if browser data is cleared.
                   </p>
                   <div className="button-stack">
                     <button
@@ -1339,6 +1309,7 @@ export default function App() {
                   <button
                     className="btn secondary"
                     disabled={
+                      Boolean(family.household) ||
                       d.foods.length > 0 ||
                       d.events.length > 0 ||
                       d.shopping.length > 0
@@ -1385,10 +1356,11 @@ export default function App() {
                     list and history are empty.
                   </p>
                   <button
+                    disabled={Boolean(family.household)}
                     className="btn danger-outline"
                     onClick={() =>
                       setConfirm({
-                        title: "Delete all local data?",
+                        title: "Delete this device’s local kitchen?",
                         body: "This permanently removes inventory, shopping, activity, and settings from this browser. Export a backup first if you need one.",
                         run: async () => {
                           await commit(emptyData(), "Local data deleted");
@@ -1407,8 +1379,8 @@ export default function App() {
                 Privacy & local storage
               </button>
               <p className="muted">
-                EatFirst v1.0 · Offline after your first successful load.
-                Install from your browser’s menu when supported. Expiry
+                EatFirst v2.0 preview · Offline after your first successful
+                load. Install from your browser’s menu when supported. Expiry
                 reminders are shown when you open the app; there are no
                 background notifications.
               </p>
@@ -1418,15 +1390,17 @@ export default function App() {
             <>
               <PageHeading
                 title="A private little kitchen."
-                sub="No account. No tracking. Your food stays with you."
+                sub="Local by default. Share with your household when you choose."
               />
               <section className="panel padded prose">
                 <h2>What we store</h2>
                 <p>
                   EatFirst stores inventory, shopping lists, activity, and
-                  preferences in this browser’s IndexedDB. The app has no
-                  backend, analytics, advertising, or account system. Food data
-                  is not sent to a server.
+                  preferences locally. When you opt into a family household,
+                  Supabase stores your account and shared groceries, shopping
+                  list, activity and preferences. Other household members can
+                  read and edit that household. The app has no advertising or
+                  analytics.
                 </p>
                 <h2>Your device is your data</h2>
                 <p>
@@ -1438,9 +1412,10 @@ export default function App() {
                 <p>
                   The app caches its own files for offline use after an initial
                   successful load. Your host may receive normal requests for
-                  these application files. There is no cross-device sync.
-                  Clearing site data, private browsing, storage eviction, or
-                  changing browsers may remove your records.
+                  these application files. Family mode synchronizes with
+                  Supabase; local mode does not. Clearing site data, private
+                  browsing, storage eviction, or changing browsers may remove
+                  your records.
                 </p>
                 <h2>You’re in control</h2>
                 <p>
@@ -1461,6 +1436,7 @@ export default function App() {
             "Waste",
             "Settings",
             "Privacy",
+            "Family",
           ].includes(page) &&
             empty(
               "This page wandered off",
@@ -1489,7 +1465,15 @@ export default function App() {
           {undo && (
             <button
               onClick={async () => {
-                await commit(undo, "Removal undone");
+                const current = dataRef.current!;
+                if (current.foods.some((f) => f.id === undo.id))
+                  throw Error(
+                    "This item is already present. It was not overwritten.",
+                  );
+                await commit(
+                  { ...current, foods: [...current.foods, undo] },
+                  "Removal undone",
+                );
                 setUndo(null);
               }}
             >
@@ -1517,6 +1501,26 @@ export default function App() {
           }}
           save={async (f, again) => {
             const current = dataRef.current!;
+            if (formScope.current !== (family.household?.id ?? "local"))
+              throw Error(
+                "Your active kitchen changed. Close this form and open it in the intended kitchen.",
+              );
+            if (
+              food.id &&
+              canonical(current.foods.find((x) => x.id === food.id)) !==
+                canonical(food)
+            )
+              throw Error(
+                "This item changed while you were editing. Close it and reopen the latest version; your current form was not saved.",
+              );
+            if (
+              transfer &&
+              canonical(current.shopping.find((s) => s.id === transfer)) !==
+                canonical(transferBaseline.current)
+            )
+              throw Error(
+                "That shopping item was already put away or removed. Close this form to see the shared kitchen.",
+              );
             await commit(
               {
                 ...current,
@@ -1779,8 +1783,10 @@ export default function App() {
           <p>
             This validated backup contains {pending.foods.length} groceries,{" "}
             {pending.shopping.length} shopping items and {pending.events.length}{" "}
-            activity entries. Import replaces all current local data and
-            settings. Export your current data first if needed.
+            activity entries. Import replaces the current kitchen and settings.
+            In Family mode it replaces the shared household data for everyone. A
+            local backup is preserved first. Export your current data first if
+            needed.
           </p>
           <div className="form-actions">
             <button className="btn secondary" onClick={() => setPending(null)}>
@@ -1790,6 +1796,11 @@ export default function App() {
               className="btn primary"
               disabled={saving}
               onClick={async () => {
+                await preserveBackup(
+                  dataRef.current!,
+                  "Before confirmed backup replacement",
+                  family.session?.user.id,
+                );
                 await commit(pending, "Backup restored");
                 setPending(null);
                 setUndo(null);

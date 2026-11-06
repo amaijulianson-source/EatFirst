@@ -28,6 +28,17 @@ export type Shopping = {
   name: string;
   quantity: string;
   checked: boolean;
+  priority?: boolean;
+  category?: (typeof categories)[number];
+  notes?: string;
+  purchasedAt?: string;
+};
+export type Frequent = {
+  id: string;
+  name: string;
+  quantity: string;
+  count: number;
+  lastPurchased: string;
 };
 export type Event = {
   id: string;
@@ -47,6 +58,7 @@ export type Data = {
   version: 1;
   foods: Food[];
   shopping: Shopping[];
+  frequent?: Frequent[];
   events: Event[];
   settings: Settings;
   demo: boolean;
@@ -194,7 +206,11 @@ export function addShopping(data: Data, names: string[]): Data {
   return {
     ...data,
     shopping: [
-      ...data.shopping,
+      ...data.shopping.map((s) =>
+        names.some((n) => normalize(n) === normalize(s.name)) && s.checked
+          ? { ...s, checked: false, purchasedAt: undefined }
+          : s,
+      ),
       ...names
         .filter((n) => {
           const key = normalize(n);
@@ -284,5 +300,65 @@ export function validateBackup(input: unknown): Data {
     return fail();
   for (const list of [d.foods, d.shopping, d.events])
     if (new Set(list.map((x) => x.id)).size !== list.length) return fail();
+  if (
+    d.frequent !== undefined &&
+    (!Array.isArray(d.frequent) ||
+      !d.frequent.every(
+        (f) =>
+          f &&
+          str(f.id) &&
+          str(f.name) &&
+          str(f.quantity) &&
+          num(f.count) &&
+          Number.isInteger(f.count) &&
+          validDate(f.lastPurchased),
+      ) ||
+      new Set(d.frequent.map((f) => f.id)).size !== d.frequent.length)
+  )
+    return fail();
+  if (
+    !d.shopping.every(
+      (s) =>
+        (s.priority === undefined || typeof s.priority === "boolean") &&
+        (s.category === undefined || categories.includes(s.category)) &&
+        (s.notes === undefined || str(s.notes)) &&
+        (s.purchasedAt === undefined || validDate(s.purchasedAt)),
+    )
+  )
+    return fail();
   return structuredClone(d);
+}
+
+export function purchaseItem(
+  data: Data,
+  id: string,
+  checked: boolean,
+  today = localDate(),
+): Data {
+  const item = data.shopping.find((s) => s.id === id);
+  if (!item) throw Error("Shopping item no longer exists.");
+  let frequent = data.frequent ?? [];
+  if (checked && !item.checked) {
+    const key = normalize(item.name);
+    const prev = frequent.find((f) => f.id === key);
+    frequent = [
+      ...frequent.filter((f) => f.id !== key),
+      {
+        id: key,
+        name: item.name,
+        quantity: item.quantity,
+        count: (prev?.count ?? 0) + 1,
+        lastPurchased: today,
+      },
+    ];
+  }
+  return {
+    ...data,
+    frequent,
+    shopping: data.shopping.map((s) =>
+      s.id === id
+        ? { ...s, checked, purchasedAt: checked ? today : undefined }
+        : s,
+    ),
+  };
 }

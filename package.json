@@ -1,6 +1,6 @@
 {
   "name": "eatfirst",
-  "version": "1.0.0",
+  "version": "2.0.0",
   "private": true,
   "type": "module",
   "scripts": {
@@ -10,9 +10,13 @@
     "typecheck": "tsc --noEmit",
     "lint": "eslint .",
     "test": "vitest run",
-    "test:e2e": "playwright test"
+    "test:e2e": "playwright test",
+    "test:security": "bash tests/security/run-policy-tests.sh",
+    "check:cloud-config": "node scripts/check-cloud-config.mjs",
+    "test:family-local": "bash scripts/test-family-local.sh"
   },
   "dependencies": {
+    "@supabase/supabase-js": "^2.119.0",
     "dexie": "^4.2.0",
     "lucide-react": "^0.468.0",
     "react": "^19.0.0",

@@ -4,6 +4,17 @@ import { VitePWA } from "vite-plugin-pwa";
 const base = process.env.BASE_PATH || "/";
 export default defineConfig({
   base,
+  build: {
+    rollupOptions: {
+      output: {
+        manualChunks: {
+          "vendor-react": ["react", "react-dom"],
+          "vendor-cloud": ["@supabase/supabase-js"],
+          "vendor-database": ["dexie"],
+        },
+      },
+    },
+  },
   plugins: [
     react(),
     VitePWA({
@@ -37,8 +48,13 @@ export default defineConfig({
         ],
       },
       workbox: {
+        // Root and preview share an origin. Workbox's broad outdated-cache
+        // cleanup matches child scopes too; each precache still prunes its own entries.
+        cleanupOutdatedCaches: false,
         globPatterns: ["**/*.{js,css,html,png,svg,woff2}"],
         navigateFallback: "index.html",
+        navigateFallbackDenylist:
+          base === "/EatFirst/" ? [/\/v2-preview(?:\/|$)/] : [],
       },
     }),
   ],
