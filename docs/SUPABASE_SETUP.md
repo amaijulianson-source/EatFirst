@@ -1,6 +1,6 @@
-# EatFirst V2 Supabase setup (not deployed)
+# EatFirst V2 Supabase setup
 
-V2 is developed on `feat/family-sharing-v2`. The existing production app remains V1 until authentication, database privacy and synchronization tests pass, the project is configured and a release is approved. Never merge this branch while these gates are incomplete.
+The owner verified the Google-authenticated preview and authorized production release. The existing household database and real accounts are preserved. Future deployments run through the default-branch GitHub Actions workflow.
 
 ## One-time database setup
 

@@ -25,12 +25,23 @@ jobs:
       - run: npm test
       - run: npm run test:security
       - run: npx playwright install --with-deps chromium
+      - run: npm run test:family-local
       - run: npm run test:e2e
       - run: npm run check:cloud-config && npm run build
         env:
           VITE_SUPABASE_URL: ${{ secrets.VITE_SUPABASE_URL }}
           VITE_SUPABASE_PUBLISHABLE_KEY: ${{ secrets.VITE_SUPABASE_PUBLISHABLE_KEY }}
           BASE_PATH: /${{ github.event.repository.name }}/
+      - name: Keep existing preview links and OAuth callbacks working
+        env:
+          VITE_SUPABASE_URL: ${{ secrets.VITE_SUPABASE_URL }}
+          VITE_SUPABASE_PUBLISHABLE_KEY: ${{ secrets.VITE_SUPABASE_PUBLISHABLE_KEY }}
+          VITE_RELEASE_PREVIEW: "true"
+          BASE_PATH: /${{ github.event.repository.name }}/v2-preview/
+        run: |
+          npm run build -- --outDir dist-preview
+          mkdir -p dist/v2-preview
+          cp -a dist-preview/. dist/v2-preview/
       - uses: actions/configure-pages@v5
       - uses: actions/upload-pages-artifact@v3
         with:

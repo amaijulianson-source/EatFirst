@@ -507,10 +507,10 @@ export default function App() {
           <div className="release-preview-note" role="note">
             <strong>V2 verification preview</strong>
             <span>
-              Your live V1 groceries stay separate. Use test groceries here.
-              Shared household changes use the real family service.
+              Your local groceries stay separate from the main app. Shared
+              household changes use the real family service.
             </span>
-            <a href="/EatFirst/">Return to live EatFirst V1</a>
+            <a href="/EatFirst/">Open main EatFirst</a>
           </div>
         )}
         <header className="topbar">

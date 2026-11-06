@@ -20,9 +20,10 @@ try {
   await expect(
     page.getByRole("button", { name: "Continue with Google" }),
   ).toBeVisible();
-  await expect(
-    page.getByText("V2 verification preview", { exact: true }),
-  ).toBeVisible();
+  if (base.includes("/v2-preview/"))
+    await expect(
+      page.getByText("V2 verification preview", { exact: true }),
+    ).toBeVisible();
   await page.screenshot({
     path: "test-results/google-hosted/public-preview-mobile.png",
     fullPage: true,

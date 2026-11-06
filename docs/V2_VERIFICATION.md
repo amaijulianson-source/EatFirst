@@ -75,3 +75,9 @@ Verified on the actual public URLs, not just localhost:
 The owner added the preview redirect to Supabase. Actual Google account completion, session persistence/logout and Google-authenticated invitation/sync checks are awaiting the owner's phone interaction. No Google password or session token is requested. Do not merge V2 over V1 before that gate passes.
 
 Reproduce the non-interactive provider/cancellation check with `node tests/security/google-provider-browser.mjs`. It does not sign into a Google account. To target another properly configured V2 deployment set `EATFIRST_URL` including its trailing slash. This script uses a fresh browser profile and stores only its sign-in-screen capture under ignored test-results.
+
+## Owner-approved production release — 2026-11-06
+
+The owner personally verified the real Google-account preview: sign-in, persistent sessions, household creation, invitation generation/acceptance, shared inventory, realtime shopping and logout/re-login all worked. The owner explicitly authorized V2 to replace V1, stated their V1 data is disposable, and required preservation of all real Supabase accounts/households. No real account/household is modified or deleted by release checks. Local migration remains available for other users.
+
+The final workflow runs lint/typecheck, units, PostgreSQL policy checks, the complete disposable local Auth/household suite, six desktop/mobile flows and Pages-path cloud-configured builds before deploying. The original preview remains at its existing scope/storage to preserve old invitation links and in-flight OAuth callbacks. The root worker excludes preview navigation. Worker updates wait for old windows to close instead of forcing reloads during edits.

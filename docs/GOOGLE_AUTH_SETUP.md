@@ -1,6 +1,6 @@
-# Google sign-in for EatFirst V2 (release remains blocked)
+# Google sign-in for EatFirst V2
 
-V1 stays live at https://amaijulianson-source.github.io/EatFirst/. Changes are on `feat/family-sharing-v2`; do not merge before real Google login and release gates pass. This replaces the previous SMTP plan. No email-password signup, SMTP account, paid plan, custom domain or new GitHub secret is needed for Google-only authentication.
+The owner successfully verified Google sign-in, sessions, invitations and shared household synchronization in the isolated preview and authorized release. The main URL is https://amaijulianson-source.github.io/EatFirst/. No SMTP account, paid plan, custom domain or Google secret in GitHub is needed.
 
 ## 1. Google Cloud — owner action
 

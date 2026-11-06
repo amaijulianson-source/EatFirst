@@ -23,7 +23,7 @@ A private kitchen companion for using food before it goes to waste. Use a local 
 5. **Create invitation link**, preferably restricted to the recipient's email. Share it privately. It expires after 48 hours and works once. The family member opens it, signs in with their own Google account and accepts. The app retains the invitation while you sign in on the same device.
 6. Select the household to share inventory, shopping, quantities, date fields, activity and relevant preferences. Owners can rename it, revoke invitations and remove members. Switching to **On this device · local kitchen** or signing out restores the original local kitchen.
 
-Google handles identity verification and account recovery; EatFirst does not ask for a Google password. No SMTP provider is needed. The project owner must first configure [Google OAuth](docs/GOOGLE_AUTH_SETUP.md) in Google Cloud and Supabase. Google credentials belong only in Supabase's provider settings. V2 stays on its feature branch until actual Google sign-in is verified; the public link still serves V1.
+Google handles identity verification and account recovery; EatFirst does not ask for a Google password. No SMTP provider is needed. The project owner must first configure [Google OAuth](docs/GOOGLE_AUTH_SETUP.md) in Google Cloud and Supabase. Google credentials belong only in Supabase's provider settings. The owner verified Google sign-in, persistent sessions, household creation, invitations and live shared groceries/shopping in the isolated preview before approving production release.
 
 ## Install
 
