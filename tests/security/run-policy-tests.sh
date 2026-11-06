@@ -5,7 +5,7 @@ container_name="eatfirst-policy-check-${RANDOM}"
 trap 'docker rm -f "$container_name" >/dev/null 2>&1 || true' EXIT
 docker run -d --network none --name "$container_name" -e POSTGRES_HOST_AUTH_METHOD=trust postgres:17-alpine >/dev/null
 for attempt in {1..40}; do
-  if docker exec "$container_name" pg_isready -U postgres >/dev/null 2>&1; then break; fi
+  if docker exec "$container_name" pg_isready -h 127.0.0.1 -U postgres >/dev/null 2>&1; then break; fi
   sleep 1
 done
 docker exec -i "$container_name" psql -U postgres -v ON_ERROR_STOP=1 < tests/security/bootstrap.sql

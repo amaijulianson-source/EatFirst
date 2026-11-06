@@ -17,7 +17,7 @@ wait_http(){ for attempt in {1..50}; do if curl -fsS "$1" >/dev/null 2>&1; then 
 docker network create "$stack_net" >/dev/null
 docker run -d --name "$stack_db" --network "$stack_net" -e POSTGRES_PASSWORD=eatfirst-local-test-only postgres:17-alpine >/dev/null
 containers+=("$stack_db")
-for attempt in {1..40}; do if docker exec "$stack_db" pg_isready -U postgres >/dev/null 2>&1; then break; fi; sleep 1; done
+for attempt in {1..40}; do if docker exec "$stack_db" pg_isready -h 127.0.0.1 -U postgres >/dev/null 2>&1; then break; fi; sleep 1; done
 docker exec "$stack_db" psql -U postgres -v ON_ERROR_STOP=1 -c 'create role anon nologin; create role authenticated nologin; create schema auth;' >/dev/null
 start_auth(){
  local name="$1" port="$2" gateway="$3" app="$4" confirm="$5"
