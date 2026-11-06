@@ -1,3 +1,4 @@
+import { pendingInvitationKey } from "../preview";
 import { useEffect, useState } from "react";
 import {
   Users,
@@ -43,7 +44,7 @@ export function Family() {
     [invites, setInvites] = useState<Invitation[]>([]),
     [link, setLink] = useState(""),
     [invite, setInvite] = useState(
-      localStorage.getItem("eatfirst-invite") ?? "",
+      localStorage.getItem(pendingInvitationKey) ?? "",
     ),
     [confirm, setConfirm] = useState<"migrate" | "conflict" | null>(null),
     [backups, setBackups] = useState<

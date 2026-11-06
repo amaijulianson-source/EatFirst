@@ -1,3 +1,4 @@
+import { localDatabaseName } from "./preview";
 import Dexie, { type Table } from "dexie";
 import { emptyData, validateBackup, type Data } from "./core";
 export class EatFirstDB extends Dexie {
@@ -7,7 +8,7 @@ export class EatFirstDB extends Dexie {
     { id: string; label: string; date: string; data: Data; owner?: string },
     string
   >;
-  constructor(name = "eatfirst") {
+  constructor(name = localDatabaseName) {
     super(name);
     this.version(1).stores({ state: "id" });
     this.version(2).stores({ state: "id", caches: "id", backups: "id,date" });

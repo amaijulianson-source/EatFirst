@@ -1,3 +1,4 @@
+import { releasePreview } from "./preview";
 import {
   useEffect,
   useRef,
@@ -502,6 +503,16 @@ export default function App() {
         </div>
       </aside>
       <div className="workspace">
+        {releasePreview && (
+          <div className="release-preview-note" role="note">
+            <strong>V2 verification preview</strong>
+            <span>
+              Your live V1 groceries stay separate. Use test groceries here.
+              Shared household changes use the real family service.
+            </span>
+            <a href="/EatFirst/">Return to live EatFirst V1</a>
+          </div>
+        )}
         <header className="topbar">
           <span className="breadcrumb">
             Your kitchen <ChevronRight size={14} /> <strong>{page}</strong>

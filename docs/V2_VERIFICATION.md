@@ -52,3 +52,11 @@ Executed after the change:
 - Production build at exact `/EatFirst/` base passed. Browser checked the actual Pages-subdirectory OAuth redirect, manifest/icons, matching service-worker scope, offline launch/refresh, no horizontal overflow and zero JavaScript errors. Mobile sign-in screenshot inspected in `artifacts/v2-google-login-mobile.png`.
 
 Still required before deployment: owner configures Google OAuth client/provider; actual Google account login/logout/persistence and two-account invitation/sync checks in a V2 preview; installed-phone callback behavior. Hosted realtime/privacy tests previously passed before this auth UI change, but are not falsely represented as Google-authenticated checks. No V2 public deployment or main-branch update was performed. V1 stays live.
+
+## Configured Google provider and isolated preview — 2026-11-06
+
+Hosted public Auth settings now report Google enabled, email enabled and global signup allowed. An actual hosted Supabase authorization request reached Google's account sign-in screen with PKCE and without an invalid-client/redirect error. No account password was entered, no Google login token was obtained and no token exchange is claimed.
+
+The isolated Pages preview uses its own local database, auth-session key, pending-invitation key and PWA scope. A real combined V1/preview browser check created a V1 grocery, opened V2 under the controlling V1 service worker, added preview food, and returned to usable V1. V1's database version, grocery, auth marker and invitation marker were unchanged; preview food stayed separate. Preview PWA manifest/icons/scope/offline launch/refresh passed without page errors or phone overflow. All 43 unit tests, lint/typecheck and the full local Auth/household/offline browser stack passed again after isolation changes.
+
+Google account completion on the phone is the remaining manual gate. The owner must add the exact preview redirect to Supabase and sign in there before V2 replaces V1. The preview uses real Supabase household records, so it is not a mock cloud service. Main receives only an isolated-preview hosting workflow; V2 app source remains on its feature branch.

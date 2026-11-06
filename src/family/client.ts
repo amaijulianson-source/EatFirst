@@ -1,3 +1,4 @@
+import { releasePreview, pendingInvitationKey } from "../preview";
 import { createClient } from "@supabase/supabase-js";
 import { cloudFetch } from "./network";
 import { callbackState } from "./oauth";
@@ -6,7 +7,8 @@ const callback =
   typeof window !== "undefined" ? callbackState(location.href) : null;
 export const authCallbackError = callback?.error ?? "";
 if (callback && (callback.invite || callback.callback)) {
-  if (callback.invite) localStorage.setItem("eatfirst-invite", callback.invite);
+  if (callback.invite)
+    localStorage.setItem(pendingInvitationKey, callback.invite);
   const u = new URL(location.href);
   u.searchParams.delete("invite");
   if (callback.error) {
@@ -30,6 +32,7 @@ export const supabase = cloudConfigured
         autoRefreshToken: true,
         detectSessionInUrl: true,
         flowType: "pkce",
+        ...(releasePreview ? { storageKey: "eatfirst-v2-preview-auth" } : {}),
       },
       global: { fetch: cloudFetch },
     })

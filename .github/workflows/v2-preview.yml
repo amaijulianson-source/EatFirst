@@ -1,0 +1,107 @@
+name: Publish isolated V2 preview alongside V1
+on:
+  workflow_dispatch:
+    inputs:
+      v2_ref:
+        description: Exact reviewed V2 commit SHA (40 lowercase hex characters)
+        required: true
+        type: string
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+concurrency:
+  group: pages
+  cancel-in-progress: false
+jobs:
+  build:
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Validate immutable preview revision
+        env:
+          V2_REF: ${{ inputs.v2_ref }}
+        run: '[[ "$V2_REF" =~ ^[a-f0-9]{40}$ ]]'
+      - uses: actions/checkout@v4
+        with:
+          path: live
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.v2_ref }}
+          path: preview
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+          cache-dependency-path: |
+            live/package-lock.json
+            preview/package-lock.json
+      - name: Check preview and preserve V1 source
+        run: |
+          node -e 'if (!JSON.parse(require("fs").readFileSync("live/package.json")).version.startsWith("1.")) throw Error("V1 is no longer main; refuse preview deployment")'
+          cd preview
+          npm ci
+          npm run lint
+          npm run typecheck
+          npm test
+          npm run test:security
+          npx playwright install --with-deps chromium
+          npm run test:family-local
+          npm run test:e2e
+      - name: Build preview with isolated database and auth storage
+        working-directory: preview
+        env:
+          BASE_PATH: /EatFirst/v2-preview/
+          VITE_RELEASE_PREVIEW: "true"
+          VITE_SUPABASE_URL: ${{ secrets.VITE_SUPABASE_URL }}
+          VITE_SUPABASE_PUBLISHABLE_KEY: ${{ secrets.VITE_SUPABASE_PUBLISHABLE_KEY }}
+        run: npm run check:cloud-config && npm run build
+      - name: Build existing V1 and add preview beside it
+        working-directory: live
+        env:
+          BASE_PATH: /EatFirst/
+        run: |
+          npm ci
+          # Leave every V1 application file intact. Only exclude the preview
+          # from V1's navigation fallback, so its worker cannot serve V1 there.
+          python3 - <<'PY'
+          from pathlib import Path
+          p = Path('vite.config.ts')
+          s = p.read_text()
+          marker = 'navigateFallback: "index.html",'
+          assert s.count(marker) == 1, 'Unexpected V1 worker configuration'
+          p.write_text(s.replace(marker, marker + '\n        navigateFallbackDenylist: [/\\/v2-preview(?:\\/|$)/],'))
+          PY
+          npm run build
+          # Copy after Workbox generates V1's cache: preview is not in its cache.
+          mkdir -p dist/v2-preview
+          cp -a ../preview/dist/. dist/v2-preview/
+      - name: Verify V1 data isolation, preview routing and offline PWA
+        working-directory: live
+        env:
+          BASE_PATH: /EatFirst/
+        run: |
+          node node_modules/vite/bin/vite.js preview --host 127.0.0.1 --port 4186 --strictPort > /tmp/preview.log 2>&1 &
+          server_pid=$!
+          trap 'kill "$server_pid"' EXIT
+          for attempt in {1..30}; do
+            if curl -fsS http://127.0.0.1:4186/EatFirst/ > /dev/null; then break; fi
+            sleep 1
+          done
+          cd ../preview
+          EATFIRST_ROOT_URL=http://127.0.0.1:4186/EatFirst/ node tests/security/preview-browser.mjs
+          EATFIRST_URL=http://127.0.0.1:4186/EatFirst/v2-preview/ node tests/pwa-check.mjs
+      - uses: actions/configure-pages@v5
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: live/dist
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}v2-preview/
+    steps:
+      - name: Publish V1 plus isolated preview
+        id: deployment
+        uses: actions/deploy-pages@v4

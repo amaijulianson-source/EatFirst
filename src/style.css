@@ -2278,3 +2278,17 @@ dialog::backdrop {
 .auth-reassurance svg {
   flex-shrink: 0;
 }
+
+.release-preview-note {
+  display: grid;
+  gap: 6px;
+  padding: 16px 24px;
+  background: var(--surface);
+  border-bottom: 1px solid var(--border);
+  font-size: 0.85rem;
+  line-height: 1.5;
+}
+.release-preview-note a {
+  color: var(--green);
+  text-decoration: underline;
+}

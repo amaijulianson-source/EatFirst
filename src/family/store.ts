@@ -1,3 +1,4 @@
+import { pendingInvitationKey } from "../preview";
 import type { Session, RealtimeChannel } from "@supabase/supabase-js";
 import { db, readData, saveData, preserveBackup } from "../db";
 import { emptyData, validateBackup, type Data } from "../core";
@@ -557,7 +558,7 @@ class KitchenStore {
       member_name: display,
     });
     if (error) throw error;
-    localStorage.removeItem("eatfirst-invite");
+    localStorage.removeItem(pendingInvitationKey);
     await this.loadHouseholds();
     await this.select(data);
   }

@@ -50,3 +50,13 @@ On iPhone Safari and Android Chrome, test from the installed icon as well. OAuth
 - Supabase Google setup and browser OAuth: https://supabase.com/docs/guides/auth/social-sign-in/auth-google
 - Google Audience / basic-sign-in Testing exception: https://support.google.com/cloud/answer/15549945
 - Supabase redirect allowlist: https://supabase.com/docs/guides/auth/redirect-urls
+
+## Isolated phone verification preview
+
+The manually dispatched `v2-preview.yml` workflow runs from main (the only branch authorized by the Pages environment). It checks an exact V2 SHA, builds that version at `/EatFirst/v2-preview/`, and serves it beside the unchanged V1 application. V1's navigation fallback excludes the preview; V1's generated precache excludes its files. Main receives only this hosting workflow, not V2 application code.
+
+Preview builds set `VITE_RELEASE_PREVIEW=true`. They use database `eatfirst-v2-preview`, auth storage `eatfirst-v2-preview-auth`, a separate pending-invitation key and a visible preview notice. They never open/upgrade the live `eatfirst` database. They still use the real Supabase project; household edits there are real. Use test groceries; migrate real local groceries only after the final release at the original URL.
+
+Owner must add `https://amaijulianson-source.github.io/EatFirst/v2-preview/` to Supabase's redirect allowlist (keep the original Site URL and original redirect too). Google's callback/origin stay unchanged. Then open https://amaijulianson-source.github.io/EatFirst/v2-preview/#Family on the phone and complete Google sign-in. Test creating a household, sharing an invitation to another Google account, and live shopping/inventory updates. Sign out, sign back in and refresh to check session continuity. Do not send passwords or tokens to the developer.
+
+If an old installed V1 worker shows V1 at the preview address, open the original site online once, close all EatFirst tabs and installed windows, then reopen the preview. Do not clear website data. For final release verification, repeat Google sign-in from the installed production icon; preview and production sessions are intentionally separate.
