@@ -1,7 +1,7 @@
-name: V2 checks without deployment
+name: Feature checks without deployment
 on:
   push:
-    branches: [feat/family-sharing-v2]
+    branches: [feat/family-sharing-v2, feat/recipe-engine-v3]
   pull_request:
     branches: [main]
 permissions:

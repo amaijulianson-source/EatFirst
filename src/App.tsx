@@ -1,9 +1,16 @@
+import {
+  CookingCard,
+  RecipeExperience,
+  RecipeDetail,
+  useRecipePersonal,
+} from "./cooking/RecipeExperience";
 import { releasePreview } from "./preview";
 import {
   useEffect,
   useRef,
   useState,
   useId,
+  useMemo,
   type FormEvent,
   type ReactNode,
 } from "react";
@@ -40,15 +47,12 @@ import {
   Users,
 } from "lucide-react";
 import {
-  addShopping,
   categories,
   consume,
   daysUntil,
   emptyData,
-  eligible,
   localDate,
   locations,
-  normalize,
   status,
   validateBackup,
   wasteStats,
@@ -137,6 +141,13 @@ function Modal({
 }
 export default function App() {
   const family = useKitchen();
+  const recipeIdentity = `recipes:${family.session?.user.id ?? "device"}:${family.household?.id ?? "local"}`;
+  const {
+    personal,
+    update: updatePersonal,
+    loading: personalLoading,
+    error: personalError,
+  } = useRecipePersonal(recipeIdentity);
   const [data, setData] = useState<Data | null>(null),
     [page, setPage] = useState<Page>(
       (location.hash.slice(1) as Page) || "Today",
@@ -150,7 +161,6 @@ export default function App() {
       null,
     ),
     [recipe, setRecipe] = useState<Recipe | null>(null),
-    [cook, setCook] = useState(false),
     [confirm, setConfirm] = useState<{
       title: string;
       body: string;
@@ -258,6 +268,13 @@ export default function App() {
     location.hash = p;
     window.scrollTo(0, 0);
   }
+  const meals = useMemo(
+    () =>
+      data && !personalLoading && !personalError
+        ? matchRecipes(data, now, personal)
+        : [],
+    [data, now, personal, personalLoading, personalError],
+  );
   if (!data)
     return (
       <div className="loading">
@@ -274,8 +291,7 @@ export default function App() {
       </div>
     );
   const d = data;
-  const meals = matchRecipes(d, now),
-    soon = d.foods
+  const soon = d.foods
       .filter((f) => daysUntil(f, now) >= 0 && daysUntil(f, now) <= 3)
       .sort((a, b) => daysUntil(a, now) - daysUntil(b, now)),
     past = d.foods.filter((f) => daysUntil(f, now) < 0),
@@ -379,52 +395,7 @@ export default function App() {
     );
   }
   function recipeCard(r: (typeof meals)[number]) {
-    return (
-      <button
-        className="recipe-card"
-        key={r.id}
-        onClick={() => {
-          setRecipe(r);
-          setCook(false);
-        }}
-      >
-        <div className={`recipe-art ${r.color}`}>
-          <span className="plate">
-            <ChefHat size={42} strokeWidth={1.25} />
-          </span>
-          <span className="time">
-            <Clock size={13} /> {r.time} min
-          </span>
-          <span className="art-leaf leaf-one" />
-          <span className="art-leaf leaf-two" />
-        </div>
-        <div className="recipe-card-body">
-          <span
-            className={`recipe-match ${r.missing.length === 0 ? "ready" : ""}`}
-          >
-            {r.missing.length === 0 ? (
-              <>
-                <Check size={14} /> I can make this
-              </>
-            ) : r.missing.length <= 2 ? (
-              `Almost ready · missing ${r.missing.length}`
-            ) : (
-              `${r.available} of ${r.ingredients.length} ingredients available`
-            )}
-          </span>
-          <h3>{r.name}</h3>
-          <p>{r.description}</p>
-          <div className="card-foot">
-            <span>
-              {r.urgent
-                ? `Uses ${r.urgent} ingredient${r.urgent > 1 ? "s" : ""} due soon`
-                : `${r.difficulty} · ${r.tags[0] ?? "Everyday"}`}
-            </span>
-            <ArrowUpRight size={18} />
-          </div>
-        </div>
-      </button>
-    );
+    return <CookingCard key={r.id} match={r} onOpen={setRecipe} />;
   }
   function empty(
     title: string,
@@ -918,54 +889,29 @@ export default function App() {
               <Safety />
             </>
           )}
-          {page === "Recipes" && (
-            <>
-              <PageHeading
-                title="Something good is cooking."
-                sub="Everyday recipes. Real ingredients. No extra guesswork."
+          {page === "Recipes" &&
+            (personalError ? (
+              <p className="banner danger" role="alert">
+                {personalError} Recipes are paused until preferences can be
+                loaded. Refresh to retry.
+              </p>
+            ) : personalLoading ? (
+              <div
+                className="skeleton"
+                role="status"
+                aria-label="Loading recipe preferences"
               />
-              <div className="banner">
-                <Info size={18} />
-                Matches include your pantry assumptions. Quantities are a guide,
-                so check what you have before cooking.
-                <button onClick={() => go("Settings")}>Edit staples</button>
-              </div>
-              <div className="chips recipe-chips">
-                {["All", "Ready", "Almost ready"].map((f) => (
-                  <button
-                    className={recipeFilter === f ? "selected" : ""}
-                    key={f}
-                    onClick={() => setRecipeFilter(f)}
-                  >
-                    {f === "Ready" ? "I can make this" : f}
-                  </button>
-                ))}
-              </div>
-              <div className="recipe-grid">
-                {meals
-                  .filter(
-                    (r) =>
-                      recipeFilter === "All" ||
-                      (recipeFilter === "Ready"
-                        ? r.missing.length === 0
-                        : r.missing.length > 0 && r.missing.length <= 2),
-                  )
-                  .map(recipeCard)}
-              </div>
-              {!meals.filter(
-                (r) =>
-                  recipeFilter === "All" ||
-                  (recipeFilter === "Ready"
-                    ? r.missing.length === 0
-                    : r.missing.length > 0 && r.missing.length <= 2),
-              ).length &&
-                empty(
-                  "A few ingredients away",
-                  "Add groceries or update your pantry staples to find more matches.",
-                )}
-              <Safety />
-            </>
-          )}
+            ) : (
+              <RecipeExperience
+                key={recipeIdentity}
+                data={d}
+                today={now}
+                personal={personal}
+                update={updatePersonal}
+                onOpen={setRecipe}
+                initialReady={recipeFilter === "Ready"}
+              />
+            ))}
           {page === "Shopping" && (
             <ShoppingView
               data={d}
@@ -1623,140 +1569,17 @@ export default function App() {
         </Modal>
       )}
       {recipe && (
-        <Modal
-          title={recipe.name}
-          close={() => {
-            setRecipe(null);
-            setCook(false);
-          }}
-        >
-          <p>{recipe.description}</p>
-          <div className="recipe-meta">
-            <span>
-              <Clock size={16} />
-              {recipe.time} min
-            </span>
-            <span>{recipe.difficulty}</span>
-            {recipe.tags.map((t) => (
-              <span key={t}>{t}</span>
-            ))}
-          </div>
-          <p className="muted">
-            About 2 portions unless noted. Check quantities, labels and dietary
-            needs. Staples are assumptions, not verified inventory.
-          </p>
-          <h3>What you’ll need</h3>
-          <ul className="ingredient-list">
-            {recipe.ingredients.map((i) => {
-              const ok =
-                d.settings.staples.some(
-                  (s) => normalize(s) === normalize(i.name),
-                ) ||
-                d.foods.some(
-                  (f) =>
-                    eligible(f, now) && normalize(f.name) === normalize(i.name),
-                );
-              return (
-                <li key={i.name}>
-                  <span className={ok ? "ingredient-ok" : "muted"}>
-                    {ok ? <Check size={16} /> : <Plus size={16} />} {i.name}
-                  </span>
-                  <span>
-                    {i.amount}
-                    {!ok && <small> · missing</small>}
-                  </span>
-                </li>
-              );
-            })}
-          </ul>
-          <button
-            className="btn secondary full"
-            onClick={async () => {
-              const missing =
-                matchRecipes(dataRef.current!, now).find(
-                  (r) => r.id === recipe.id,
-                )?.missing ?? [];
-              await commit(
-                addShopping(
-                  dataRef.current!,
-                  missing.map((i) => i.name),
-                ),
-                missing.length
-                  ? "Missing ingredients added (duplicates skipped)"
-                  : "You have all listed ingredients",
-              );
-            }}
-          >
-            {" "}
-            <ShoppingBasket size={18} />
-            Add missing ingredients to shopping
-          </button>
-          <h3>Let’s cook</h3>
-          <ol className="steps">
-            {recipe.steps.map((s) => (
-              <li key={s}>{s}</li>
-            ))}
-          </ol>
-          <Safety />
-          <button className="btn primary full" onClick={() => setCook(!cook)}>
-            <Check size={18} />
-            {cook
-              ? "Hide inventory deduction"
-              : "Cooked it? Update your inventory"}
-          </button>
-          {cook && (
-            <form
-              className="cook-form"
-              onSubmit={async (e) => {
-                e.preventDefault();
-                let next = dataRef.current!;
-                const fd = new FormData(e.currentTarget);
-                try {
-                  for (const f of next.foods) {
-                    const amount = Number(fd.get(f.id));
-                    if (amount > 0) next = consume(next, f.id, amount, "used");
-                  }
-                  await commit(next, "Cooking quantities recorded");
-                  setCook(false);
-                } catch (err) {
-                  setError(
-                    err instanceof Error ? err.message : "Invalid quantity",
-                  );
-                }
-              }}
-            >
-              <h3>Confirm what you used</h3>
-              <p className="muted">
-                No automatic deductions. Enter amounts in your inventory’s
-                units. Start at zero and adjust only what you actually used.
-              </p>
-              {d.foods
-                .filter(
-                  (f) =>
-                    eligible(f, now) &&
-                    recipe.ingredients.some(
-                      (i) => normalize(i.name) === normalize(f.name),
-                    ),
-                )
-                .map((f) => (
-                  <label key={f.id}>
-                    {f.name} ({f.unit}, {f.quantity} available)
-                    <input
-                      type="number"
-                      name={f.id}
-                      min="0"
-                      max={f.quantity}
-                      step="any"
-                      defaultValue="0"
-                    />
-                  </label>
-                ))}
-              <button className="btn primary" disabled={saving}>
-                Confirm quantities used
-              </button>
-            </form>
-          )}
-        </Modal>
+        <RecipeDetail
+          key={`${recipeIdentity}:${recipe.id}`}
+          recipe={recipe}
+          data={d}
+          today={now}
+          commit={commit}
+          personal={personal}
+          update={updatePersonal}
+          close={() => setRecipe(null)}
+          Modal={Modal}
+        />
       )}
       {confirm && (
         <Modal title={confirm.title} close={() => setConfirm(null)}>

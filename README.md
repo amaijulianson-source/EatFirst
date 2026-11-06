@@ -8,7 +8,7 @@ A private kitchen companion for using food before it goes to waste. Use a local 
 
 - Today dashboard, date-aware inventory, search/category/storage/expiry filters, quick multi-add and partial eaten/used/discarded tracking.
 - Safety-related use-by dates kept distinct from quality-related best-before dates. No invented expiry dates or freshness predictions; past-date foods are excluded from automatic recipes.
-- 27 offline recipes with explicit ingredient aliases, adjustable pantry assumptions, missing ingredients to shopping and confirmed inventory deductions.
+- 156 original curated recipes and 18 adaptive cooking templates, with Dutch/English aliases, quantity-aware matching, serving controls, missing-quantity shopping, and confirmed consumption.
 - Shopping mode, priorities, categories, notes, search, purchase history/frequently bought items and purchased-to-inventory transfer. Transfer prompts for package dates and changes both records atomically in a household.
 - Waste history/charts and recorded estimated values only; no fabricated savings or environmental claims.
 - Light/dark/device appearance, accessible responsive layout, mobile bottom navigation, local illustrations/icons, installable PWA and offline application cache.
@@ -108,3 +108,9 @@ For a local subpath rehearsal, set `BASE_PATH=/EatFirst/` on both build and prev
 No barcode lookup, automatic quantity conversion, guaranteed food freshness, background alerts or remote erase. Recipes use approximate quantities and conservative dietary tags; check labels/allergens and storage guidance. Waste counts are discard events; financial totals include only entered estimates, and changing currency relabels values without conversion. Household changes over 5000 record modifications require smaller batches. Account removal and permanent server-side household deletion require the project administrator; membership controls are available in-app.
 
 Future improvements could include richer conflict comparisons, barcode assistance, push alerts where supported, additional reviewed recipes and more physical-device/accessibility testing. See [verification](docs/V2_VERIFICATION.md) for the checks actually executed and genuine remaining limits.
+
+## V3 cooking assistant
+
+Open **Recipes** for Cook with what we have, Eat these first, Almost ready, Quick meals, Discover, Family favorites and Recently cooked. Inventory changes automatically recalculate compatible recipes. Search in Dutch or English; use category, time, serving and ingredient/allergen filters. Open details for measured ingredient status, substitutions, temperatures, storage guidance and explicit inventory deduction.
+
+Favorites, exclusions and cooking history are personal to the current account/kitchen **on this device**. Shared dietary/pantry settings remain in Settings. Export recipe memories separately in Recipes → Preferences; existing grocery backups remain unchanged. Three accurately matched, licensed local photographs supplement branded artwork; generated recipes use artwork. Unknown units and preparation forms need verification. There is no external AI, paid recipe API or production database migration. See [V3 recipe design and limitations](docs/V3_RECIPE_ENGINE.md) and [photo licenses](public/recipes/LICENSES.md).
