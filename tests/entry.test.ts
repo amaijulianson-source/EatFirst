@@ -75,6 +75,24 @@ describe("grocery names and quantities", () => {
   ])("preserves food identity for %s", (raw, name) =>
     expect(normalizeProduct(raw).name).toBe(name),
   );
+  it("explicit frozen packaging overrides a remembered pantry preference", () => {
+    const pattern = learnPatterns(
+      [],
+      [{ ...makeDraft("Bread"), location: "Pantry" }],
+      "2026-11-06",
+    );
+    expect(makeDraft("Frozen bread", "manual", pattern).location).toBe(
+      "Freezer",
+    );
+  });
+  it("a saved storage preference is retained when no new label overrides it", () => {
+    const pattern = learnPatterns(
+      [],
+      [{ ...makeDraft("Bread"), location: "Freezer" }],
+      "2026-11-06",
+    );
+    expect(makeDraft("Bread", "manual", pattern).location).toBe("Freezer");
+  });
   it("unknown quantities stay explicit review defaults", () => {
     expect(parseQuantity("a bag of carrots").explicit).toBe(false);
     expect(makeDraft("unknown groceries").review.join(" ")).toMatch(
