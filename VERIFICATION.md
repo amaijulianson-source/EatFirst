@@ -45,3 +45,20 @@ The user supplied https://github.com/amaijulianson-source/EatFirst and made it p
 Publication is still blocked: authenticated Git push returned HTTP 403, the connected GitHub blob API returned “Resource not accessible by integration” (403), and the Pages creation API returned the same denial. The integration requires explicit repository access; public visibility grants reading but does not grant writing. No application code has been pushed and no Pages site is deployed. The owner has been asked to add EatFirst to the GitHub App installation's repository access. The documented Pages URL remains a target until actual deployment succeeds.
 
 After confirming the actual capitalization, the final production build with `BASE_PATH=/EatFirst/` passed. All 6 browser tests also passed at `/EatFirst/`, and the PWA probe verified `/EatFirst/manifest.webmanifest`, `/EatFirst/` service-worker scope, all icons, offline launch/refresh, no mobile overflow and zero page errors. These were local subdirectory tests, not live deployment verification. A subsequent ordinary Git push was still denied with HTTP 403.
+
+## Successful public release — 2026-11-06
+
+This section supersedes the earlier permission and unpublished-status notes, which are retained as historical records.
+
+- Repository: https://github.com/amaijulianson-source/EatFirst
+- **Live app: https://amaijulianson-source.github.io/EatFirst/**
+- Successful workflow: https://github.com/amaijulianson-source/EatFirst/actions/runs/42193627750 (attempt 2, deployed commit `40e0dbe5e868ce6e920c86d1c6187f23c095dddf`). The owner enabled Pages using GitHub Actions. GitHub reports HTTPS enforced; the actual homepage returns HTTP 200.
+- The GitHub-hosted runner passed lint, typecheck, 22 unit tests, all 6 browser tests and the production build, then successfully published its Pages artifact.
+- `PLAYWRIGHT_BASE_URL=https://amaijulianson-source.github.io/EatFirst/ npm run test:e2e`: **6 passed** (desktop and phone-sized Chromium). This verifies the actual production app's inventory add/edit/consume/discard/remove, shopping, recipes, backup import/export, persistence after refresh, themes and offline reload.
+- `EATFIRST_URL=https://amaijulianson-source.github.io/EatFirst/ node tests/pwa-check.mjs`: **passed**. Manifest, 192/512/maskable icons, Apple icon and service-worker scope are accessible and correct. Offline launch and refresh passed. No horizontal overflow or JavaScript/network response errors were detected by the probe.
+- The probe's API request client initially could not connect through the managed network route. It now fetches assets through the already-connected browser. This is a test-tool change; application code is unchanged.
+- A supplemental production check in a phone-sized browser with timezone `Europe/Amsterdam` added a use-by item dated today, verified its Today classification, and verified it survived refresh. Chromium `Page.getInstallabilityErrors` returned an empty list. No page errors occurred.
+- Tests used isolated browser profiles. No test groceries were added to the owner's browser or any backend (the app has none).
+- Physical iPhone/Safari and Android/Chrome installation remains untested. The provided install instructions use native browser home-screen installation. No background alerts or cross-device sync are promised.
+
+Only documentation and the network-aware PWA verification tool were updated after this deployment. The running application itself was preserved.

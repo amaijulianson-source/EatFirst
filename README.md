@@ -64,7 +64,7 @@ Upload **the contents of `dist/`** to any HTTPS static host. Hash navigation and
 
 Repository: https://github.com/amaijulianson-source/EatFirst
 
-Pages deployment target: https://amaijulianson-source.github.io/EatFirst/
+**Live app: https://amaijulianson-source.github.io/EatFirst/**
 
 The repository uses `main`, and deployment runs automatically on default-branch updates. To configure the same setup in another repository:
 
@@ -104,7 +104,7 @@ See [VERIFICATION.md](VERIFICATION.md) for commands actually executed, browser c
 
 ## Install on your phone
 
-Once the public HTTPS deployment succeeds, open its actual Pages URL (shown by the deployment workflow). Do not install from a ChatGPT in-app webview.
+Open https://amaijulianson-source.github.io/EatFirst/ on your phone. Do not install from a ChatGPT in-app webview.
 
 - **iPhone:** Open the link in Safari → Share (square with up arrow) → Add to Home Screen → turn on Open as Web App if offered → Add. Open EatFirst from its home-screen icon. The included 180×180 Apple touch icon and standalone metadata support this flow.
 - **Android:** Open the link in Chrome → menu (⋮) → Install app, or Add to Home screen → Install. Labels vary by browser/device. Open the new EatFirst icon.

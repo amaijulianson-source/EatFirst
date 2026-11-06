@@ -1,4 +1,4 @@
-/* global process, URL, navigator, document, innerWidth, console */
+/* global process, URL, navigator, document, innerWidth, console, fetch */
 import assert from "node:assert/strict";
 import { chromium } from "playwright";
 const url = process.env.EATFIRST_URL;
@@ -24,9 +24,23 @@ try {
   const manifestUrl = await page
     .locator("link[rel=manifest]")
     .evaluate((e) => e.href);
-  const response = await context.request.get(manifestUrl);
-  assert.equal(response.status(), 200);
-  const manifest = await response.json();
+  // Use browser fetch so the probe follows the browser's configured network route.
+  async function getAsset(assetUrl, json = false) {
+    return page.evaluate(
+      async ({ assetUrl, json }) => {
+        const response = await fetch(assetUrl);
+        return {
+          status: response.status,
+          contentType: response.headers.get("content-type") || "",
+          body: json ? await response.json() : null,
+        };
+      },
+      { assetUrl, json },
+    );
+  }
+  const response = await getAsset(manifestUrl, true);
+  assert.equal(response.status, 200);
+  const manifest = response.body;
   const target = new URL(url);
   assert.equal(manifest.name, "EatFirst");
   assert.equal(manifest.short_name, "EatFirst");
@@ -40,16 +54,14 @@ try {
     assert(manifest.icons.some((i) => i.sizes === size));
   assert(manifest.icons.some((i) => i.purpose === "maskable"));
   for (const icon of manifest.icons) {
-    const asset = await context.request.get(
-      new URL(icon.src, manifestUrl).href,
-    );
-    assert.equal(asset.status(), 200);
-    assert.match(asset.headers()["content-type"], /image\/png/);
+    const asset = await getAsset(new URL(icon.src, manifestUrl).href);
+    assert.equal(asset.status, 200);
+    assert.match(asset.contentType, /image\/png/);
   }
   const apple = await page
     .locator("link[rel=apple-touch-icon]")
     .evaluate((e) => e.href);
-  assert.equal((await context.request.get(apple)).status(), 200);
+  assert.equal((await getAsset(apple)).status, 200);
   const scope = await page.evaluate(
     async () => (await navigator.serviceWorker.ready).scope,
   );
