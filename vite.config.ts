@@ -48,6 +48,9 @@ export default defineConfig({
         ],
       },
       workbox: {
+        // Root and preview share an origin. Workbox's broad outdated-cache
+        // cleanup matches child scopes too; each precache still prunes its own entries.
+        cleanupOutdatedCaches: false,
         globPatterns: ["**/*.{js,css,html,png,svg,woff2}"],
         navigateFallback: "index.html",
         navigateFallbackDenylist:
