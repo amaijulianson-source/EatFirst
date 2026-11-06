@@ -60,3 +60,18 @@ Hosted public Auth settings now report Google enabled, email enabled and global 
 The isolated Pages preview uses its own local database, auth-session key, pending-invitation key and PWA scope. A real combined V1/preview browser check created a V1 grocery, opened V2 under the controlling V1 service worker, added preview food, and returned to usable V1. V1's database version, grocery, auth marker and invitation marker were unchanged; preview food stayed separate. Preview PWA manifest/icons/scope/offline launch/refresh passed without page errors or phone overflow. All 43 unit tests, lint/typecheck and the full local Auth/household/offline browser stack passed again after isolation changes.
 
 Google account completion on the phone is the remaining manual gate. The owner must add the exact preview redirect to Supabase and sign in there before V2 replaces V1. The preview uses real Supabase household records, so it is not a mock cloud service. Main receives only an isolated-preview hosting workflow; V2 app source remains on its feature branch.
+
+## Public preview verification — 2026-11-06
+
+Preview deployment succeeded: https://amaijulianson-source.github.io/EatFirst/v2-preview/ . The default URL still serves V1. Workflow run: https://github.com/amaijulianson-source/EatFirst/actions/runs/42211860197 . Both feature-branch CI runs for `606c6e0` passed.
+
+Verified on the actual public URLs, not just localhost:
+
+- Combined V1/preview test passed: a fresh browser profile added V1 food, navigated under V1's worker to the preview, added separate food and returned to usable V1. V1 database version, food, auth-storage marker and invitation marker remained unchanged.
+- Preview and original V1 manifest/icons/scope, offline launch/refresh, phone overflow and JavaScript-error checks passed.
+- The real preview Google button reached Google's valid sign-in page with the exact preview redirect and S256 PKCE. A valid provider-state cancellation request to the real Supabase callback returned to preview Family and displayed a readable error, without exposing error parameters in the final URL.
+- All eight hosted household tables denied anonymous reads with PostgreSQL permission code `42501` (HTTP 401 for anonymous callers). No shared data was exposed or modified.
+
+The owner added the preview redirect to Supabase. Actual Google account completion, session persistence/logout and Google-authenticated invitation/sync checks are awaiting the owner's phone interaction. No Google password or session token is requested. Do not merge V2 over V1 before that gate passes.
+
+Reproduce the non-interactive provider/cancellation check with `node tests/security/google-provider-browser.mjs`. It does not sign into a Google account. To target another properly configured V2 deployment set `EATFIRST_URL` including its trailing slash. This script uses a fresh browser profile and stores only its sign-in-screen capture under ignored test-results.
