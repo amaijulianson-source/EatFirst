@@ -479,6 +479,9 @@ for (const key of ["rice", "pasta", "noodle", "couscous", "quinoa"])
 export const aliases: Record<string, string> = {
   tomato: "tomato",
   tomatoes: "tomato",
+  "milk (semi-skimmed)": "milk",
+  "milk (whole)": "milk",
+  "milk (skimmed)": "milk",
   peppers: "bell pepper",
   "bell peppers": "bell pepper",
   "red pepper": "bell pepper",

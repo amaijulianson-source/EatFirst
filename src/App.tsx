@@ -1,3 +1,5 @@
+import { EntryFlow, type EntryMode } from "./entry/EntryFlow";
+import { draftFromShopping, sharedPatterns } from "./entry/model";
 import {
   CookingCard,
   RecipeExperience,
@@ -155,6 +157,7 @@ export default function App() {
     [error, setError] = useState(""),
     [notice, setNotice] = useState(""),
     [saving, setSaving] = useState(false),
+    [entry, setEntry] = useState<EntryMode | null>(null),
     [food, setFood] = useState<Partial<Food> | null>(null),
     [transfer, setTransfer] = useState<string>(),
     [action, setAction] = useState<{ f: Food; kind: Event["action"] } | null>(
@@ -177,6 +180,7 @@ export default function App() {
     [undo, setUndo] = useState<Food | null>(null);
   const dataRef = useRef<Data | null>(null);
   const lock = useRef(false);
+  const entryScope = useRef("");
   const transferBaseline = useRef<Shopping | null>(null);
   const formScope = useRef<string>(family.household?.id ?? "local");
   useEffect(() => {
@@ -328,7 +332,8 @@ export default function App() {
   function newFood() {
     formScope.current = family.household?.id ?? "local";
     setTransfer(undefined);
-    setFood({});
+    entryScope.current = `${family.session?.user.id ?? "device"}:${family.household?.id ?? "local"}`;
+    setEntry("choose");
   }
   async function remove(f: Food) {
     const before = dataRef.current!;
@@ -917,11 +922,24 @@ export default function App() {
               data={d}
               saving={saving}
               commit={commit}
+              finishShopping={() => {
+                entryScope.current = `${family.session?.user.id ?? "device"}:${family.household?.id ?? "local"}`;
+                setEntry("shopping");
+              }}
               putAway={(s) => {
                 setTransfer(s.id);
                 transferBaseline.current = structuredClone(s);
                 formScope.current = family.household?.id ?? "local";
-                setFood({ name: s.name, category: s.category });
+                const draft = draftFromShopping(s, sharedPatterns(d));
+                setFood({
+                  name: draft.name,
+                  quantity: draft.quantity,
+                  unit: draft.unit,
+                  location: draft.location,
+                  category: draft.category,
+                  notes: draft.notes,
+                  dateType: draft.dateType,
+                });
               }}
             />
           )}
@@ -1436,6 +1454,21 @@ export default function App() {
             <X size={16} />
           </button>
         </div>
+      )}
+      {entry && (
+        <EntryFlow
+          key={`${family.session?.user.id ?? "device"}:${family.household?.id ?? "local"}`}
+          mode={entry}
+          data={d}
+          identity={`entry:${family.session?.user.id ?? "device"}:${family.household?.id ?? "local"}`}
+          commit={commit}
+          close={() => setEntry(null)}
+          Modal={Modal}
+          scopeGuard={() =>
+            entryScope.current ===
+            `${kitchen.getSnapshot().session?.user.id ?? "device"}:${kitchen.getSnapshot().household?.id ?? "local"}`
+          }
+        />
       )}
       {food && (
         <FoodForm

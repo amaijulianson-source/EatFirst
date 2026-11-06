@@ -51,6 +51,18 @@ export default defineConfig({
         // Root and preview share an origin. Workbox's broad outdated-cache
         // cleanup matches child scopes too; each precache still prunes its own entries.
         cleanupOutdatedCaches: false,
+        globIgnores: ["**/ocr/**"],
+        runtimeCaching: [
+          {
+            urlPattern: new RegExp(`^https?://[^/]+${base}ocr/v1/`),
+            handler: "CacheFirst",
+            options: {
+              cacheName: `eatfirst-ocr-${base}`,
+              cacheableResponse: { statuses: [200] },
+              expiration: { maxEntries: 12, maxAgeSeconds: 31536000 },
+            },
+          },
+        ],
         globPatterns: ["**/*.{js,css,html,png,svg,webp,woff2}"],
         navigateFallback: "index.html",
         navigateFallbackDenylist:

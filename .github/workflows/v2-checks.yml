@@ -1,7 +1,8 @@
 name: Feature checks without deployment
 on:
   push:
-    branches: [feat/family-sharing-v2, feat/recipe-engine-v3]
+    branches:
+      [feat/family-sharing-v2, feat/recipe-engine-v3, feat/smart-entry-v4]
   pull_request:
     branches: [main]
 permissions:

@@ -10,3 +10,9 @@ test-results/
 supabase/.temp/
 
 dist-*/
+
+# Generated from locked OCR dependencies during prebuild.
+public/ocr/v1/worker.min.js
+public/ocr/v1/core.wasm.js
+
+public/ocr/v1/worker.min.js.LICENSE.txt

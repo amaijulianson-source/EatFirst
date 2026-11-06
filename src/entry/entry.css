@@ -1,0 +1,295 @@
+.entry-choices {
+  display: grid;
+  gap: 12px;
+  margin: 18px 0;
+}
+.entry-choice {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  text-align: left;
+  padding: 20px 16px;
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  background: var(--surface);
+  width: 100%;
+}
+.entry-choice:hover {
+  background: var(--soft);
+}
+.entry-choice > span:nth-child(2) {
+  flex: 1;
+  min-width: 0;
+}
+.entry-choice strong {
+  font-size: 1rem;
+  display: block;
+  margin-bottom: 6px;
+}
+.entry-choice small {
+  display: block;
+  line-height: 1.5;
+  color: var(--muted);
+}
+.entry-choice-icon {
+  width: 46px;
+  height: 46px;
+  border-radius: 14px;
+  display: grid;
+  place-items: center;
+  background: var(--soft);
+  color: var(--green);
+  flex-shrink: 0;
+}
+.entry-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+}
+.entry-grid label {
+  min-width: 0;
+}
+.entry-grid input,
+.entry-grid select {
+  width: 100%;
+  min-width: 0;
+}
+.entry-patterns {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin: 14px 0;
+}
+.entry-patterns .chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  border: 1px solid var(--border);
+  border-radius: 20px;
+  padding: 8px 12px;
+  background: var(--surface);
+  font-size: 0.8rem;
+  min-height: 44px;
+}
+.entry-suggestion {
+  background: var(--soft);
+  padding: 10px 13px;
+  border-radius: 10px;
+  color: var(--green);
+  font-size: 0.8rem;
+  line-height: 1.6;
+}
+.entry-intro {
+  display: grid;
+  gap: 10px;
+  margin: 18px 0;
+  color: var(--muted);
+  line-height: 1.6;
+}
+.entry-intro > svg {
+  color: var(--green);
+}
+.entry-review {
+  margin-top: 28px;
+}
+.draft-card,
+.date-review {
+  border: 1px solid var(--border);
+  padding: 18px;
+  border-radius: 16px;
+  margin: 14px 0;
+  background: var(--bg);
+}
+.draft-card-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+.entry-checkbox {
+  display: flex !important;
+  flex-direction: row !important;
+  align-items: center;
+  gap: 10px;
+  line-height: 1.5;
+  margin: 0;
+}
+.entry-checkbox input {
+  width: 22px;
+  height: 22px;
+  min-height: 22px;
+  flex-shrink: 0;
+  accent-color: var(--green);
+}
+.draft-source {
+  font-size: 0.7rem;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--muted);
+  margin: 0 0 18px;
+}
+.draft-card summary,
+.entry-text summary,
+.entry-pattern-settings summary {
+  padding: 12px 0;
+  min-height: 44px;
+  cursor: pointer;
+  color: var(--green);
+  font-size: 0.85rem;
+}
+.draft-card details p {
+  margin: 8px 0;
+  line-height: 1.6;
+}
+.entry-confirm {
+  position: sticky;
+  bottom: 0;
+  background: var(--surface);
+  padding: 16px 0;
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  gap: 12px;
+  z-index: 2;
+  border-top: 1px solid var(--border);
+}
+.merge-choice {
+  font-size: 0.8rem;
+  padding: 16px 0;
+}
+.entry-upload-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin: 20px 0;
+}
+.entry-upload-actions label {
+  position: relative;
+  margin: 0;
+  overflow: hidden;
+  cursor: pointer;
+}
+.entry-upload-actions input {
+  position: absolute;
+  opacity: 0;
+  width: 100%;
+  height: 100%;
+  inset: 0;
+  cursor: pointer;
+}
+.entry-upload-actions .disabled {
+  opacity: 0.5;
+  cursor: wait;
+}
+.entry-privacy {
+  background: var(--soft);
+  color: var(--green);
+  font-size: 0.8rem;
+  line-height: 1.65;
+  border-radius: 14px;
+  padding: 14px;
+}
+.entry-progress {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 14px;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  font-size: 0.8rem;
+}
+.entry-progress > span {
+  flex: 1;
+}
+.entry-progress > svg {
+  animation: entry-spin 2s linear infinite;
+}
+.entry-text textarea {
+  font-size: 0.8rem;
+  line-height: 1.6;
+}
+.entry-pattern-settings {
+  margin-top: 26px;
+  border-top: 1px solid var(--border);
+}
+.entry-pattern-settings small {
+  line-height: 1.5;
+  display: block;
+}
+.entry-success {
+  padding: 25px 8px;
+  text-align: center;
+  color: var(--green);
+}
+.entry-success p {
+  color: var(--muted);
+  line-height: 1.65;
+}
+.barcode-review {
+  border-top: 1px solid var(--border);
+  padding-top: 10px;
+  margin-top: 14px;
+}
+.barcode-review small {
+  display: block;
+  line-height: 1.5;
+  color: var(--muted);
+}
+.finish-trip {
+  margin-bottom: 22px;
+}
+.entry-review .section-heading h3 {
+  margin-bottom: 0;
+}
+@keyframes entry-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .entry-progress > svg {
+    animation: none;
+  }
+}
+@media (max-width: 600px) {
+  .entry-choice {
+    padding: 15px 12px;
+    gap: 11px;
+  }
+  .entry-choice strong {
+    font-size: 0.95rem;
+  }
+  .entry-choice small {
+    font-size: 0.75rem;
+  }
+  .entry-choice-icon {
+    width: 40px;
+    height: 40px;
+  }
+  .entry-grid {
+    gap: 10px;
+  }
+  .draft-card,
+  .date-review {
+    padding: 14px;
+  }
+  .entry-grid select {
+    font-size: 0.85rem;
+  }
+  .entry-confirm > .btn {
+    flex: 1;
+    font-size: 0.8rem;
+  }
+  .entry-upload-actions {
+    flex-direction: column;
+  }
+  .entry-upload-actions label {
+    width: 100%;
+  }
+  .entry-progress {
+    flex-wrap: wrap;
+  }
+  .entry-pattern-settings .form-actions {
+    flex-direction: column;
+  }
+}

@@ -27,11 +27,13 @@ export function ShoppingView({
   saving,
   commit,
   putAway,
+  finishShopping,
 }: {
   data: Data;
   saving: boolean;
   commit: (data: Data, message?: string, optimistic?: boolean) => Promise<void>;
   putAway: (item: Shopping) => void;
+  finishShopping: () => void;
 }) {
   const family = useKitchen();
   const focused = useRef(new Map<string, string>());
@@ -223,6 +225,15 @@ export function ShoppingView({
           {mode ? "Finish shopping mode" : "Start shopping mode"}
         </button>
       </div>
+      {purchased.length > 0 && (
+        <button
+          className="btn primary full finish-trip"
+          onClick={finishShopping}
+        >
+          <Refrigerator size={18} />
+          Add purchased items to inventory ({purchased.length})
+        </button>
+      )}
       {mode && (
         <div
           className="shopping-progress"
