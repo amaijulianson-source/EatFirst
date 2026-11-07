@@ -372,72 +372,23 @@ export function VoiceInventory({
               open until you tap Finish.
             </p>
           </div>
-          <fieldset className="voice-mode" disabled={active}>
-            <legend>What are you doing?</legend>
-            <label className={mode === "check" ? "selected" : ""}>
-              <input
-                type="radio"
-                name="voice-mode"
-                value="check"
-                checked={mode === "check"}
-                onChange={() => setMode("check")}
-              />
-              <span>
-                <strong>Check what I have</strong>
-                <small>
-                  Reconcile current stock. Quantities replace totals.
-                </small>
-              </span>
-            </label>
-            <label className={mode === "purchase" ? "selected" : ""}>
-              <input
-                type="radio"
-                name="voice-mode"
-                value="purchase"
-                checked={mode === "purchase"}
-                onChange={() => setMode("purchase")}
-              />
-              <span>
-                <strong>Add new groceries</strong>
-                <small>New purchases. Add separate batches.</small>
-              </span>
-            </label>
-          </fieldset>
-          <div className="entry-grid voice-options">
-            <label>
-              Speech language
-              <select
-                disabled={active}
-                value={language}
-                onChange={(e) => setLanguage(e.target.value as typeof language)}
-              >
-                <option value="en-GB">English</option>
-                <option value="nl-NL">Nederlands</option>
-              </select>
-            </label>
-            <label>
-              Calendar timezone
-              <select
-                disabled={active}
-                value={timeZone}
-                onChange={(e) => setTimeZone(e.target.value)}
-              >
-                {[
-                  ...new Set([
-                    Intl.DateTimeFormat().resolvedOptions().timeZone,
-                    "Europe/Amsterdam",
-                    "Europe/London",
-                    "UTC",
-                  ]),
-                ].map((t) => (
-                  <option key={t}>{t}</option>
-                ))}
-              </select>
-            </label>
-          </div>
           <div
             className={`voice-capture ${speech.status === "listening" ? "is-listening" : ""}`}
           >
+            <label className="voice-mode-select">
+              Inventory mode · {language === "nl-NL" ? "Nederlands" : "English"}
+              <select
+                aria-label="Inventory mode"
+                disabled={active}
+                value={mode}
+                onChange={(e) => setMode(e.target.value as VoiceMode)}
+              >
+                <option value="check">Check my stock · replace totals</option>
+                <option value="purchase">
+                  Add new groceries · new batches
+                </option>
+              </select>
+            </label>
             <button
               className="voice-mic"
               aria-label={
@@ -488,6 +439,46 @@ export function VoiceInventory({
               Silence never saves or finishes your inventory session.
             </small>
           </div>
+          <details className="voice-language-settings">
+            <summary>
+              {language === "nl-NL" ? "Nederlands" : "English"} · {timeZone} ·
+              Change
+            </summary>
+            <div className="entry-grid voice-options">
+              <label>
+                Speech language
+                <select
+                  disabled={active}
+                  value={language}
+                  onChange={(e) =>
+                    setLanguage(e.target.value as typeof language)
+                  }
+                >
+                  <option value="en-GB">English</option>
+                  <option value="nl-NL">Nederlands</option>
+                </select>
+              </label>
+              <label>
+                Calendar timezone
+                <select
+                  disabled={active}
+                  value={timeZone}
+                  onChange={(e) => setTimeZone(e.target.value)}
+                >
+                  {[
+                    ...new Set([
+                      Intl.DateTimeFormat().resolvedOptions().timeZone,
+                      "Europe/Amsterdam",
+                      "Europe/London",
+                      "UTC",
+                    ]),
+                  ].map((t) => (
+                    <option key={t}>{t}</option>
+                  ))}
+                </select>
+              </label>
+            </div>
+          </details>
           <p className="voice-disclosure">
             <AlertCircle size={17} />
             <span>

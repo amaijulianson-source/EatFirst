@@ -118,7 +118,7 @@ Favorites, exclusions and cooking history are personal to the current account/ki
 
 ## Talk to EatFirst inventory entry
 
-Open **Inventory → Add food → Talk to EatFirst**. Select **Check what I have** (replace current totals) or **Add new groceries** (new batches), choose English or Nederlands, and tap the microphone. Browser recognition may use Apple/Google services, may need internet, and can stop after silence. The app immediately shows when listening stops; tap **Resume listening** to continue the same private draft. Silence never saves or finishes a session.
+Open **Inventory → Add food → Talk to EatFirst**. Select **Check my stock** (replace current totals) or **Add new groceries** (new batches), choose English or Nederlands, and tap the microphone. Browser recognition may use Apple/Google services, may need internet, and can stop after silence. The app immediately shows when listening stops; tap **Resume listening** to continue the same private draft. Silence never saves or finishes a session.
 
 Use the editable **Your words** transcript with your phone keyboard’s dictation microphone when browser speech is unavailable, including some iPhone home-screen configurations. **Finish & review** stops capture and creates editable proposals; **Confirm inventory changes** applies them atomically. Names, counts, units, storage, dates, target batches and low-stock suggestions remain under your control. Nothing is shared before confirmation. Approximate/unspoken quantities stay unknown, and unspecified date types stay visibly unconfirmed. Spoken dates always require checking.
 

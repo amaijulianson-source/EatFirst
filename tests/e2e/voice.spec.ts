@@ -93,6 +93,19 @@ test("segmented speech preserves long pauses, interim corrections and microphone
 }) => {
   await mockSpeech(page);
   await enter(page);
+  const micBox = await page.locator(".voice-mic").boundingBox(),
+    statusBox = await page
+      .getByRole("dialog")
+      .getByRole("status")
+      .boundingBox(),
+    footerBox = await page.locator(".voice-flow .entry-confirm").boundingBox();
+  expect(
+    micBox &&
+      statusBox &&
+      footerBox &&
+      Math.max(micBox.y + micBox.height, statusBox.y + statusBox.height) <=
+        footerBox.y,
+  ).toBe(true);
   await page.clock.install();
   await page
     .getByRole("button", { name: "Start or resume listening", exact: true })
@@ -275,7 +288,9 @@ test("stock checks reconcile totals; purchases remain separate; review edits and
     .check();
   await page.getByRole("button", { name: "Save food", exact: true }).click();
   await enter(page);
-  await page.getByRole("radio", { name: /Add new groceries/ }).check();
+  await page
+    .getByRole("combobox", { name: "Inventory mode", exact: true })
+    .selectOption("purchase");
   await page
     .getByLabel("Your words", { exact: true })
     .fill("I bought seven eggs");

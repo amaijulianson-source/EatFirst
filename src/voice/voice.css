@@ -24,55 +24,6 @@
   line-height: 1.7;
   margin-bottom: 10px;
 }
-.voice-mode {
-  padding: 0;
-  border: 0;
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 10px;
-  margin: 20px 0;
-}
-.voice-mode legend {
-  font-weight: 600;
-  font-size: 0.85rem;
-  margin-bottom: 10px;
-}
-.voice-mode label {
-  display: flex;
-  flex-direction: row;
-  gap: 9px;
-  padding: 14px 11px;
-  border: 1px solid var(--border);
-  border-radius: 14px;
-  background: var(--surface);
-  cursor: pointer;
-  margin: 0;
-  align-items: flex-start;
-}
-.voice-mode label.selected {
-  background: var(--soft);
-  border-color: var(--green);
-}
-.voice-mode input {
-  width: 19px;
-  height: 19px;
-  min-height: 19px;
-  flex-shrink: 0;
-  accent-color: var(--green);
-  margin-top: 2px;
-}
-.voice-mode strong {
-  display: block;
-  font-size: 0.8rem;
-  line-height: 1.5;
-}
-.voice-mode small {
-  display: block;
-  margin-top: 4px;
-  font-size: 0.72rem;
-  line-height: 1.5;
-  color: var(--muted);
-}
 .voice-options {
   margin: 16px 0;
 }
@@ -260,9 +211,6 @@
   }
 }
 @media (max-width: 400px) {
-  .voice-mode {
-    grid-template-columns: 1fr;
-  }
   .voice-heading h3 {
     font-size: 1.65rem;
   }
@@ -285,4 +233,31 @@
   cursor: pointer;
   min-height: 44px;
   padding: 12px 0;
+}
+
+.voice-language-settings > summary {
+  color: var(--green);
+  padding: 10px 0;
+  min-height: 44px;
+  font-size: 0.8rem;
+  cursor: pointer;
+}
+@media (max-width: 600px) {
+  .voice-heading {
+    margin: 17px 0;
+  }
+  .voice-capture {
+    padding: 18px 14px;
+  }
+}
+
+.voice-mode-select {
+  text-align: left;
+  font-size: 0.76rem;
+  margin: 0 0 22px;
+}
+.voice-mode-select select {
+  width: 100%;
+  margin-top: 7px;
+  font-size: 0.84rem;
 }
