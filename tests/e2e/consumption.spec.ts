@@ -30,13 +30,11 @@ async function seed(page: Page) {
       }) as Food,
   );
   await page.goto("./#Settings");
-  await page
-    .locator('input[type="file"]')
-    .setInputFiles({
-      name: "cooking.json",
-      mimeType: "application/json",
-      buffer: Buffer.from(JSON.stringify(d)),
-    });
+  await page.locator('input[type="file"]').setInputFiles({
+    name: "cooking.json",
+    mimeType: "application/json",
+    buffer: Buffer.from(JSON.stringify(d)),
+  });
   await page
     .getByRole("button", { name: "Replace & restore", exact: true })
     .click();
@@ -119,6 +117,8 @@ test("dedicated used option, corrections, snacks and waste update appropriate re
   page,
 }) => {
   await seed(page);
+  await enter(page);
+  await page.getByRole("button", { name: "Close dialog", exact: true }).click();
   await enter(page, true);
   await expect(
     page.getByRole("combobox", { name: "Inventory mode", exact: true }),
@@ -227,4 +227,31 @@ test("offline cooking deductions survive reload without duplicate application", 
   await expect(
     page.getByRole("button", { name: /Eggs 4 pieces/ }),
   ).toBeVisible();
+});
+
+test("a missed cooking ingredient can be added to review without creating inventory", async ({
+  page,
+}) => {
+  await seed(page);
+  await enter(page);
+  await page.getByLabel("Your words", { exact: true }).fill("I used two eggs");
+  await page
+    .getByRole("button", { name: "Finish & review", exact: true })
+    .click();
+  await page
+    .getByRole("button", { name: "Add a missing item", exact: true })
+    .click();
+  await expect(page.locator(".usage-review-card")).toHaveCount(2);
+  const row = page.locator(".usage-review-card").last();
+  await row.getByLabel("Ingredient name", { exact: true }).fill("Cheese");
+  await row.getByLabel("Ingredient name", { exact: true }).blur();
+  await row.getByLabel("Amount from batch 1 (g)").fill("75");
+  await confirm(page);
+  await expect(
+    page.getByRole("button", { name: /Cheese 125 g/ }),
+  ).toBeVisible();
+  await expect(
+    page.getByRole("button", { name: /Eggs 4 pieces/ }),
+  ).toBeVisible();
+  await expect(page.locator(".food-row")).toHaveCount(7);
 });

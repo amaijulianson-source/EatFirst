@@ -35,7 +35,7 @@ export function ConsumptionReview({
     edit({
       ...patch,
       allocations: plan.allocations,
-      warnings: [...new Set([...r.warnings, ...plan.warnings])],
+      warnings: plan.warnings,
     });
   }
   function amount(id: string, value: number | null, whole = false) {

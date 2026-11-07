@@ -132,6 +132,7 @@ export function VoiceInventory({
     void readVoiceDraft(identity)
       .then((d) => {
         if (!valid) return;
+        if (d && !d.text.trim() && !d.pending && !d.rows.length) d = null;
         const text = d?.text ?? "";
         setSpeech({
           ...idle,

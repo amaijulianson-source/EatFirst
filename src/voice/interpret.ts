@@ -239,6 +239,12 @@ export function interpretInventory(
           const nextQuantity = quantity(after, mentions[i + 1].name);
           if (nextQuantity) after = after.slice(0, nextQuantity.index);
         }
+        if (
+          /\b(?:not|niet)\s+(?:\d+(?:[.,]\d+)?(?:\s+[a-z]+)?\s*)?$/.test(
+            before.trim(),
+          )
+        )
+          continue;
         // An expiry number belongs to the previous food, never to the next one.
         if (spokenDate(before, options.today)) before = "";
         const q = quantity(

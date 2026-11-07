@@ -127,6 +127,11 @@ describe("recipe-independent natural consumption intent", () => {
     expect(r).toHaveLength(1);
     expect(r[0].allocations?.[0]?.amount).toBe(4);
   });
+  it("does not replace a correction with the explicitly negated old count", () =>
+    expect(
+      only("I used three eggs. Actually I used four eggs, not three eggs.")
+        .allocations?.[0]?.amount,
+    ).toBe(4));
   it("does not act on a negated use statement", () => {
     expect(parse("I did not use two eggs").items).toEqual([]);
   });
