@@ -1,0 +1,11 @@
+{
+  "url": "https://amaijulianson-source.github.io/EatFirst/",
+  "actualV4Upgrade": "passed without clearing storage or reinstall",
+  "originalLocalGrocery": "preserved",
+  "retiredScopedPhotoCache": "removed",
+  "offlineVoiceInterpretationAndConfirmation": "passed",
+  "offlineRefresh": "passed",
+  "phoneViewportOverflow": false,
+  "pageErrors": [],
+  "physicalIPhoneSpeech": "not tested"
+}

@@ -1,0 +1,64 @@
+{
+  "website": "https://amaijulianson-source.github.io/EatFirst/",
+  "deployedSource": "6522d7471137c06588feb000e804537fafcc1b10",
+  "deployment": "https://github.com/amaijulianson-source/EatFirst/actions/runs/42361724273",
+  "unitTests": 274,
+  "chromiumTestsInRelease": 38,
+  "webkitVoiceTestsInRelease": 11,
+  "chromiumTestsAgainstPublicSite": 38,
+  "publicPwa": {
+    "url": "https://amaijulianson-source.github.io/EatFirst/",
+    "manifest": "https://amaijulianson-source.github.io/EatFirst/manifest.webmanifest",
+    "serviceWorkerScope": "https://amaijulianson-source.github.io/EatFirst/",
+    "icons": "passed",
+    "offlineLaunchAndRefresh": "passed",
+    "mobileOverflow": false,
+    "pageErrors": 0
+  },
+  "upgrade": {
+    "url": "https://amaijulianson-source.github.io/EatFirst/",
+    "actualV4Upgrade": "passed without clearing storage or reinstall",
+    "originalLocalGrocery": "preserved",
+    "retiredScopedPhotoCache": "removed",
+    "offlineVoiceInterpretationAndConfirmation": "passed",
+    "offlineRefresh": "passed",
+    "phoneViewportOverflow": false,
+    "pageErrors": [],
+    "physicalIPhoneSpeech": "not tested"
+  },
+  "hostedGoogle": {
+    "publicPreview": "passed",
+    "googleHandoff": "valid sign-in screen",
+    "exactRedirect": "passed",
+    "pkce": "S256",
+    "hostedProviderCancellation": "returned to preview Family with readable error",
+    "googleAccountLogin": "not performed; human account chooser required"
+  },
+  "hostedPrivacy": {
+    "authSettingsStatus": 200,
+    "googleEnabled": true,
+    "tables": {
+      "inventory_items": {
+        "status": 401,
+        "exposedRecords": 0
+      },
+      "shopping_items": {
+        "status": 401,
+        "exposedRecords": 0
+      },
+      "household_members": {
+        "status": 401,
+        "exposedRecords": 0
+      },
+      "household_invitations": {
+        "status": 401,
+        "exposedRecords": 0
+      }
+    },
+    "mutations": "none",
+    "authenticatedCrossHouseholdIsolation": "tested in disposable local policy/RPC suite, not real family accounts"
+  },
+  "physicalIPhoneSpeech": "not tested",
+  "realFamilyDataUsedByVerification": false,
+  "screenshots": "fresh disposable local-only verification profiles"
+}
