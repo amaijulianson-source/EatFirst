@@ -6,14 +6,7 @@ import {
   validDate,
   validateBackup,
 } from "../core";
-import { ingredientKey, profiles } from "../cooking/ingredients";
-export type DateCandidate = {
-  raw: string;
-  date: string;
-  type?: Food["dateType"];
-  review: boolean;
-  reason: string;
-};
+import { ingredientKey, profiles, aliases } from "../cooking/ingredients";
 export type Pattern = {
   name: string;
   quantity: number;
@@ -34,15 +27,28 @@ export type Draft = {
   expiry: string;
   dateType: Food["dateType"];
   notes: string;
-  source: "manual" | "shopping" | "photo";
+  source: "manual" | "shopping";
   sources: string[];
   review: string[];
-  barcode?: string;
   shoppingId?: string;
   included: boolean;
   quantityEvidence?: "label" | "pattern" | "unverified" | "confirmed";
 };
 const rules: [RegExp, string, Food["category"], Food["location"]][] = [
+  [
+    /\b(?:sweet potato(?:es)?|zoete aardappelen?|zoete aardappel)\b/i,
+    "Sweet potato",
+    "Produce",
+    "Pantry",
+  ],
+  [
+    /\b(?:canned tomato(?:es)?|tinned tomato(?:es)?|tomatenblokjes)\b/i,
+    "Canned tomato",
+    "Pantry",
+    "Pantry",
+  ],
+  [/\b(?:green beans?|sperziebonen)\b/i, "Green bean", "Produce", "Fridge"],
+
   [/\b(?:peanut butter|pindakaas)\b/i, "Peanut butter", "Pantry", "Pantry"],
   [/\b(?:almond butter|cashew butter)\b/i, "Nut butter", "Pantry", "Pantry"],
   [
@@ -161,8 +167,55 @@ const rules: [RegExp, string, Food["category"], Food["location"]][] = [
   [/\b(?:linzen|lentils?)\b/i, "Lentils", "Pantry", "Pantry"],
   [/\b(?:bloem|flour)\b/i, "Flour", "Pantry", "Pantry"],
   [/\b(?:sugar|suiker)\b/i, "Sugar", "Pantry", "Pantry"],
+  [/\b(?:ketchup|tomatenketchup)\b/i, "Ketchup", "Pantry", "Pantry"],
+  [/\b(?:water|water bottles?)\b/i, "Water", "Drinks", "Pantry"],
+  [
+    /\b(?:aardbeien|strawberr(?:y|ies))\b/i,
+    "Strawberries",
+    "Produce",
+    "Fridge",
+  ],
+  [/\b(?:peren|peer|pears?)\b/i, "Pears", "Produce", "Fridge"],
+  [/\b(?:ham|ham slices?)\b/i, "Ham", "Meat & fish", "Fridge"],
+  [/\b(?:jam|marmelade)\b/i, "Jam", "Pantry", "Pantry"],
+  [/\b(?:bonen|beans?)\b/i, "Beans", "Pantry", "Pantry"],
+  [/\b(?:mayonaise|mayonnaise)\b/i, "Mayonnaise", "Pantry", "Pantry"],
   [/\b(?:koffie|coffee)\b/i, "Coffee", "Pantry", "Pantry"],
 ];
+// Longest non-overlapping food spans; quantities and references are interpreted separately.
+export function productMentions(text: string, extraNames: string[] = []) {
+  const hits: { start: number; end: number; raw: string; name: string }[] = [];
+  for (const [expression, name] of rules) {
+    for (const match of text.matchAll(new RegExp(expression.source, "gi")))
+      hits.push({
+        start: match.index!,
+        end: match.index! + match[0].length,
+        raw: match[0],
+        name,
+      });
+  }
+  for (const name of [
+    ...extraNames,
+    ...Object.keys(profiles),
+    ...Object.keys(aliases),
+  ]) {
+    const escaped = name.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+    if (!escaped) continue;
+    for (const match of text.matchAll(new RegExp(`\\b${escaped}\\b`, "gi")))
+      hits.push({
+        start: match.index!,
+        end: match.index! + match[0].length,
+        raw: match[0],
+        name: normalizeProduct(name).name,
+      });
+  }
+  const accepted: typeof hits = [];
+  for (const hit of hits.sort((a, b) => b.end - b.start - (a.end - a.start))) {
+    if (!accepted.some((h) => hit.start < h.end && hit.end > h.start))
+      accepted.push(hit);
+  }
+  return accepted.sort((a, b) => a.start - b.start);
+}
 export const commonGroceries = [
   "Milk",
   "Eggs",
@@ -265,101 +318,6 @@ export function parseQuantity(raw: string): {
   else unit = "pieces";
   return { quantity, unit, explicit: true, label: m[0] };
 }
-const monthNames: Record<string, number> = {
-  jan: 1,
-  januari: 1,
-  january: 1,
-  feb: 2,
-  februari: 2,
-  february: 2,
-  mrt: 3,
-  maart: 3,
-  march: 3,
-  mar: 3,
-  apr: 4,
-  april: 4,
-  mei: 5,
-  may: 5,
-  jun: 6,
-  juni: 6,
-  june: 6,
-  jul: 7,
-  juli: 7,
-  july: 7,
-  aug: 8,
-  augustus: 8,
-  august: 8,
-  sep: 9,
-  september: 9,
-  okt: 10,
-  oct: 10,
-  oktober: 10,
-  october: 10,
-  nov: 11,
-  november: 11,
-  dec: 12,
-  december: 12,
-};
-export function extractDates(text: string): DateCandidate[] {
-  const result: DateCandidate[] = [];
-  const pattern =
-    /\b(?:(\d{4})[-/.](\d{1,2})[-/.](\d{1,2})|(\d{1,2})[-/.](\d{1,2})[-/.](\d{2}|\d{4})|(\d{1,2})\s+(jan(?:uary|uari)?|feb(?:ruary|ruari)?|mrt|maart|mar(?:ch)?|apr(?:il)?|mei|may|jun[ei]?|jul[yi]?|aug(?:ustus|ust)?|sep(?:tember)?|okt(?:ober)?|oct(?:ober)?|nov(?:ember)?|dec(?:ember)?)\.?\s+(\d{2}|\d{4}))\b/gi;
-  for (const m of text.matchAll(pattern)) {
-    const context = text
-      .slice(Math.max(0, m.index! - 65), m.index! + m[0].length + 10)
-      .toLowerCase();
-    const preceding = text.slice(Math.max(0, m.index! - 65), m.index!);
-    const labels = [
-      ...preceding.matchAll(
-        /use[- ]?by|te gebruiken tot|\btgt\b|best[- ]?before|ten minste houdbaar|\btht\b/gi,
-      ),
-    ];
-    const nearest = labels.at(-1)?.[0] ?? "";
-    const type: Food["dateType"] | undefined =
-      /use[- ]?by|te gebruiken tot|tgt/i.test(nearest)
-        ? "use-by"
-        : nearest
-          ? "best-before"
-          : undefined;
-    if (
-      !type &&
-      /purchase|receipt|kassa|bon datum|aankoop|manufactur|productiedatum/.test(
-        context,
-      )
-    )
-      continue;
-    const yy = m[1] ?? m[6] ?? m[9];
-    const year = Number(yy.length === 2 ? "20" + yy : yy);
-    const month = Number(m[2] ?? m[5] ?? monthNames[m[8]?.toLowerCase()]);
-    const date = Number(m[3] ?? m[4] ?? m[7]);
-    const iso = `${year}-${String(month).padStart(2, "0")}-${String(date).padStart(2, "0")}`;
-    if (!validDate(iso)) continue;
-    const review =
-      !type || yy.length === 2 || (!m[1] && !m[8] && date <= 12 && month <= 12);
-    result.push({
-      raw: m[0],
-      date: iso,
-      type,
-      review,
-      reason: !type
-        ? "Date found; confirm that it is an expiry date."
-        : review
-          ? "Read as day/month/year (two-digit years use 20xx). Confirm the package."
-          : "Labelled expiry date; confirm against the package.",
-    });
-  }
-  return [...new Map(result.map((d) => [d.date + ":" + d.type, d])).values()];
-}
-export function validBarcode(value: string) {
-  if (!/^\d{8}$|^\d{12,14}$/.test(value)) return false;
-  const d = value.split("").map(Number);
-  const check = d.pop()!;
-  const sum = d.reverse().reduce((s, n, i) => s + n * (i % 2 === 0 ? 3 : 1), 0);
-  return (10 - (sum % 10)) % 10 === check;
-}
-export function barcodeInText(text: string) {
-  return [...new Set((text.match(/\b\d{8,14}\b/g) ?? []).filter(validBarcode))];
-}
 export function makeDraft(
   raw: string,
   source: Draft["source"] = "manual",
@@ -380,7 +338,6 @@ export function makeDraft(
       ? "Freezer"
       : (memory?.location ?? n.location),
     expiry: "",
-    barcode: memory?.barcode,
     dateType:
       n.category === "Meat & fish" || n.category === "Dairy"
         ? "use-by"
@@ -405,94 +362,6 @@ export function draftFromShopping(s: Shopping, patterns: Pattern[] = []) {
   const d = makeDraft(s.name, "shopping", patterns, s.quantity);
   return { ...d, shoppingId: s.id, category: s.category ?? d.category };
 }
-export function parsePhotoText(
-  text: string,
-  source: string,
-  patterns: Pattern[] = [],
-): { drafts: Draft[]; dates: DateCandidate[]; barcodes: string[] } {
-  const dates = extractDates(text),
-    barcodes = barcodeInText(text);
-  const drafts: Draft[] = [];
-  for (const line of text
-    .split(/\n|;/)
-    .map((s) => s.trim())
-    .filter(Boolean)) {
-    if (
-      /^(?:total|totaal|btw|vat|subtotal|subtotaal|change|pinbetaling|receipt|kassabon|best before|use by|tht|tgt|te gebruiken|ten minste)/i.test(
-        line,
-      )
-    )
-      continue;
-    const n = normalizeProduct(line);
-    if (!n.known) continue;
-    const d = makeDraft(line, "photo", patterns);
-    d.sources = [source];
-    d.review.push(
-      "Text recognition can be wrong. Confirm against the product.",
-    );
-    drafts.push(d);
-  }
-  if (drafts.length === 1 && dates.length === 1 && dates[0].type) {
-    drafts[0].expiry = dates[0].date;
-    drafts[0].dateType = dates[0].type;
-    drafts[0].review.push(dates[0].reason);
-  }
-  for (const barcode of barcodes) {
-    const p = patterns.find((p) => p.barcode === barcode);
-    if (p && !drafts.some((d) => productKey(d.name) === productKey(p.name))) {
-      const d = makeDraft(p.name, "photo", patterns);
-      d.quantity = p.quantity;
-      d.unit = p.unit;
-      d.barcode = barcode;
-      d.sources = [source];
-      d.review.push("Barcode matched a saved pattern; verify the package.");
-      drafts.push(d);
-    } else if (drafts.length === 1) drafts[0].barcode = barcode;
-  }
-  return { drafts: mergeDetections(drafts), dates, barcodes };
-}
-export function mergeDetections(rows: Draft[]): Draft[] {
-  const result: Draft[] = [];
-  for (const row of rows) {
-    const same = result.find(
-      (r) =>
-        r.source === "photo" &&
-        row.source === "photo" &&
-        productKey(r.name) === productKey(row.name) &&
-        ((r.quantity === row.quantity && r.unit === row.unit) ||
-          r.quantityEvidence === "unverified" ||
-          row.quantityEvidence === "unverified") &&
-        (!r.expiry ||
-          !row.expiry ||
-          (r.expiry === row.expiry && r.dateType === row.dateType)) &&
-        (!r.barcode || !row.barcode || r.barcode === row.barcode),
-    );
-    if (same) {
-      if (
-        same.quantityEvidence === "unverified" &&
-        row.quantityEvidence !== "unverified"
-      ) {
-        same.quantity = row.quantity;
-        same.unit = row.unit;
-        same.quantityEvidence = row.quantityEvidence;
-      }
-      if (!same.expiry && row.expiry) {
-        same.expiry = row.expiry;
-        same.dateType = row.dateType;
-      }
-      same.sources = [...new Set([...same.sources, ...row.sources])];
-      same.review = [
-        ...new Set([
-          ...same.review,
-          ...row.review,
-          "May appear in multiple photos. Confirm the number of packages; quantities were not added.",
-        ]),
-      ];
-      same.barcode ??= row.barcode;
-    } else result.push(structuredClone(row));
-  }
-  return result;
-}
 export function sharedPatterns(data: Data): Pattern[] {
   const foods = [
     ...data.foods,
@@ -507,7 +376,6 @@ export function sharedPatterns(data: Data): Pattern[] {
       unit: f.unit,
       location: f.location,
       category: f.category,
-      barcode: f.notes.match(/Barcode:\s*(\d{8,14})\b/)?.[1],
       count: 1,
       lastUsed: f.added,
     });
@@ -543,7 +411,7 @@ export function validatePatterns(value: unknown): Pattern[] {
       p.count < 1 ||
       typeof p.lastUsed !== "string" ||
       !validDate(p.lastUsed) ||
-      (p.barcode !== undefined && !validBarcode(p.barcode))
+      (p.barcode !== undefined && !/^\d{8,14}$/.test(p.barcode))
     )
       throw Error("Invalid product patterns.");
   }
@@ -564,7 +432,7 @@ export function learnPatterns(
       unit: r.unit,
       location: r.location,
       category: r.category,
-      barcode: r.barcode ?? old?.barcode,
+      barcode: old?.barcode,
       count: (old?.count ?? 0) + 1,
       lastUsed: today,
     });
@@ -603,9 +471,7 @@ export function saveDrafts(
           "A selected shopping item changed or was already put away. Reopen the review.",
         );
     }
-    const notes = [r.notes.trim(), r.barcode ? `Barcode: ${r.barcode}` : ""]
-      .filter(Boolean)
-      .join("\n");
+    const notes = r.notes.trim();
     const same = merge
       ? next.foods.find(
           (f) =>
@@ -651,35 +517,4 @@ export function saveDrafts(
       next.shopping = next.shopping.filter((s) => s.id !== r.shoppingId);
   }
   return { data: validateBackup(next), ids };
-}
-export type ExpiryChange = {
-  id: string;
-  expiry: string;
-  dateType: Food["dateType"];
-};
-export function assignDates(
-  current: Data,
-  changes: ExpiryChange[],
-  baseline: Data,
-) {
-  const next = structuredClone(current);
-  const ids = new Set<string>();
-  for (const c of changes) {
-    if (ids.has(c.id))
-      throw Error(
-        "Two scans target the same item. Choose the correct date first.",
-      );
-    ids.add(c.id);
-    if (!validDate(c.expiry))
-      throw Error("Choose a complete valid date, including the year.");
-    const f = next.foods.find((f) => f.id === c.id),
-      old = baseline.foods.find((f) => f.id === c.id);
-    if (!f || !old || JSON.stringify(f) !== JSON.stringify(old))
-      throw Error(
-        "An item changed while you were assigning dates. Reopen the review.",
-      );
-    f.expiry = c.expiry;
-    f.dateType = c.dateType;
-  }
-  return validateBackup(next);
 }

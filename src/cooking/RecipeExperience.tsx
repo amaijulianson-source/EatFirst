@@ -11,7 +11,7 @@ import {
   ArrowUpRight,
   SlidersHorizontal,
 } from "lucide-react";
-import { type Data, localDate } from "../core";
+import { type Data, localDate, foodAmount } from "../core";
 import { ingredientKey } from "./ingredients";
 import {
   recommendations,
@@ -899,10 +899,13 @@ export function RecipeDetail({
           </p>
           {eligibleFoods(data, recipe, today).map((f) => (
             <label key={f.id}>
-              {f.name} ({f.unit}, {f.quantity} available)
+              {f.quantityUnknown
+                ? `${f.name} (${foodAmount(f)}; record an amount in Inventory first)`
+                : `${f.name} (${f.unit}, ${f.quantity} available)`}
               <input
                 type="number"
                 name={f.id}
+                disabled={f.quantityUnknown}
                 min="0"
                 max={f.quantity}
                 step="any"

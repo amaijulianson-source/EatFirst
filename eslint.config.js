@@ -9,7 +9,6 @@ export default ts.config(
       "node_modules",
       "playwright-report",
       "test-results",
-      "public/ocr/**",
     ],
   },
   js.configs.recommended,

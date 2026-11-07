@@ -3,6 +3,13 @@ import ReactDOM from "react-dom/client";
 import App from "./App";
 import "./style.css";
 import { registerSW } from "virtual:pwa-register";
+if ("caches" in window) {
+  void caches
+    .delete(
+      `eatfirst-ocr-${new URL(import.meta.env.BASE_URL, location.origin).pathname}`,
+    )
+    .catch(() => undefined);
+}
 registerSW({
   onRegisteredSW(_url, registration) {
     let checking = false;

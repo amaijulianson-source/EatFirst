@@ -52,6 +52,8 @@ import {
   categories,
   consume,
   daysUntil,
+  foodAmount,
+  foodDateType,
   emptyData,
   localDate,
   locations,
@@ -356,9 +358,12 @@ export default function App() {
             setFood(f);
           }}
         >
-          <strong>{f.name}</strong>
+          <strong>
+            {f.name}
+            {f.lowStock && <small className="low-stock-label">Low stock</small>}
+          </strong>
           <span>
-            {f.quantity} {f.unit} <i>·</i> {f.location}
+            {foodAmount(f)} <i>·</i> {f.location}
           </span>
         </button>
         <div className="food-date">
@@ -368,7 +373,7 @@ export default function App() {
             {s}
           </span>
           <small>
-            {f.dateType === "use-by" ? "Use-by" : "Best-before"}
+            {foodDateType(f)}
             {f.expiry
               ? ` · ${new Date(`${f.expiry}T12:00:00`).toLocaleDateString(undefined, { month: "short", day: "numeric" })}`
               : ""}
@@ -757,7 +762,7 @@ export default function App() {
                         <div>
                           <strong>{f.name}</strong>
                           <small>
-                            {f.quantity} {f.unit} · {f.location}
+                            {foodAmount(f)} · {f.location}
                           </small>
                         </div>
                         <ChevronRight size={16} />
@@ -850,6 +855,7 @@ export default function App() {
                         "Due soon",
                         "Past use-by",
                         "Past best-before",
+                        "Past date · check label",
                         "Today",
                         "Tomorrow",
                         "Next 3 days",
@@ -1070,7 +1076,10 @@ export default function App() {
                         <div>
                           <strong>{e.food.name}</strong>
                           <small>
-                            {e.amount} {e.food.unit} · {e.date}
+                            {e.food.quantityUnknown
+                              ? "Quantity unspecified"
+                              : `${e.amount} ${e.food.unit}`}{" "}
+                            · {e.date}
                           </small>
                         </div>
                         {e.value !== undefined && <span>{money(e.value)}</span>}
@@ -1343,10 +1352,10 @@ export default function App() {
                 Privacy & local storage
               </button>
               <p className="muted">
-                EatFirst v2.0 preview · Offline after your first successful
-                load. Install from your browser’s menu when supported. Expiry
-                reminders are shown when you open the app; there are no
-                background notifications.
+                EatFirst · Talk to EatFirst · Offline after your first
+                successful load. Install from your browser’s menu when
+                supported. Expiry reminders are shown when you open the app;
+                there are no background notifications.
               </p>
             </>
           )}
@@ -1365,6 +1374,18 @@ export default function App() {
                   list, activity and preferences. Other household members can
                   read and edit that household. The app has no advertising or
                   analytics.
+                </p>
+                <h2>Voice and your privacy</h2>
+                <p>
+                  Talk to EatFirst uses your browser’s speech recognition when
+                  available. Audio may be processed by Apple, Google or your
+                  browser’s speech provider; internet access and permissions may
+                  be required. EatFirst does not record audio or send recordings
+                  or full transcripts to Supabase. English/Dutch inventory
+                  interpretation runs locally. Unfinished transcripts and
+                  reviews are kept only on this device, scoped to your account
+                  and kitchen, until saved or cancelled. Keyboard dictation
+                  follows your device’s own privacy settings.
                 </p>
                 <h2>Your device is your data</h2>
                 <p>
@@ -1568,13 +1589,14 @@ export default function App() {
             }}
           >
             <p className="muted">
-              {action.f.quantity} {action.f.unit} remaining. Partial amounts
-              keep the rest in your inventory.
+              {action.f.quantityUnknown
+                ? "Quantity is unspecified. Confirm to record the whole item. To record a partial amount, first enter a known quantity in Inventory."
+                : `${foodAmount(action.f)} remaining. Partial amounts keep the rest in your inventory.`}
             </p>
             {daysUntil(action.f, now) < 0 && action.kind !== "discarded" && (
               <Safety />
             )}
-            <label>
+            <label hidden={action.f.quantityUnknown}>
               Amount ({action.f.unit})
               <input
                 name="amount"
@@ -1720,7 +1742,10 @@ function FoodForm({
 }) {
   const [more, setMore] = useState(!!food.id),
     [busy, setBusy] = useState(false),
-    [error, setError] = useState("");
+    [error, setError] = useState(""),
+    [quantityUnknown, setQuantityUnknown] = useState(
+      food.quantityUnknown ?? false,
+    );
   const form = useRef<HTMLFormElement>(null);
   async function submit(e: FormEvent<HTMLFormElement>) {
     e.preventDefault();
@@ -1733,13 +1758,19 @@ function FoodForm({
     const f: Food = {
       id: food.id ?? crypto.randomUUID(),
       name: String(fd.get("name")).trim(),
-      quantity: Number(fd.get("quantity")),
-      unit: String(fd.get("unit")).trim(),
+      quantity: quantityUnknown ? 1 : Number(fd.get("quantity")),
+      unit: quantityUnknown ? "unspecified" : String(fd.get("unit")).trim(),
+      quantityUnknown,
+      lowStock: fd.get("lowStock") === "on",
+      dateTypeUnconfirmed: fd.get("dateType") === "unknown",
       category: fd.get("category") as Food["category"],
       location: fd.get("location") as Food["location"],
       added: String(fd.get("added")),
       expiry: String(fd.get("expiry")),
-      dateType: fd.get("dateType") as Food["dateType"],
+      dateType:
+        fd.get("dateType") === "unknown"
+          ? "use-by"
+          : (fd.get("dateType") as Food["dateType"]),
       notes: String(fd.get("notes")),
       value: value === "" ? undefined : Number(value),
     };
@@ -1794,8 +1825,13 @@ function FoodForm({
             Date on the package
             <select
               name="dateType"
-              defaultValue={food.dateType ?? "best-before"}
+              defaultValue={
+                food.dateTypeUnconfirmed
+                  ? "unknown"
+                  : (food.dateType ?? "best-before")
+              }
             >
+              <option value="unknown">Not specified · check label</option>
               <option value="best-before">Best-before · quality</option>
               <option value="use-by">Use-by · safety</option>
             </select>
@@ -1804,6 +1840,7 @@ function FoodForm({
             Quantity
             <input
               name="quantity"
+              disabled={quantityUnknown}
               type="number"
               min="0.001"
               max="1000000"
@@ -1814,9 +1851,18 @@ function FoodForm({
           </label>
           <label>
             Unit
-            <select name="unit" defaultValue={food.unit ?? "pieces"}>
+            <select
+              name="unit"
+              disabled={quantityUnknown}
+              defaultValue={
+                food.unit === "unspecified" ? "pieces" : (food.unit ?? "pieces")
+              }
+            >
               {[
                 "pieces",
+                "carton",
+                "container",
+                "jar",
                 "g",
                 "kg",
                 "ml",
@@ -1851,6 +1897,22 @@ function FoodForm({
             </select>
           </label>
         </div>
+        <label className="entry-checkbox">
+          <input
+            type="checkbox"
+            checked={quantityUnknown}
+            onChange={(e) => setQuantityUnknown(e.target.checked)}
+          />
+          Quantity unspecified
+        </label>
+        <label className="entry-checkbox">
+          <input
+            type="checkbox"
+            name="lowStock"
+            defaultChecked={food.lowStock}
+          />
+          Low stock / nearly empty
+        </label>
         <button
           type="button"
           className="text-btn"

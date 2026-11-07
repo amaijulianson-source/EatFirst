@@ -23,6 +23,9 @@ export type Food = {
   dateType: "use-by" | "best-before";
   notes: string;
   value?: number;
+  lowStock?: boolean;
+  quantityUnknown?: boolean;
+  dateTypeUnconfirmed?: boolean;
 };
 export type Shopping = {
   id: string;
@@ -90,15 +93,27 @@ export function validDate(s: unknown): s is string {
   const d = new Date(`${s}T12:00:00`);
   return !isNaN(+d) && localDate(d) === s;
 }
+export function foodAmount(f: Food) {
+  return f.quantityUnknown ? "Quantity unspecified" : `${f.quantity} ${f.unit}`;
+}
+export function foodDateType(f: Food) {
+  return f.dateTypeUnconfirmed
+    ? "Date type unconfirmed"
+    : f.dateType === "use-by"
+      ? "Use-by"
+      : "Best-before";
+}
 export function daysUntil(f: Food, today = localDate()) {
   return f.expiry ? dayNumber(f.expiry) - dayNumber(today) : Infinity;
 }
 export function status(f: Food, today = localDate()) {
   const n = daysUntil(f, today);
   return n < 0
-    ? f.dateType === "use-by"
-      ? "Past use-by"
-      : "Past best-before"
+    ? f.dateTypeUnconfirmed
+      ? "Past date · check label"
+      : f.dateType === "use-by"
+        ? "Past use-by"
+        : "Past best-before"
     : n === 0
       ? "Today"
       : n === 1
@@ -122,6 +137,8 @@ export function consume(
   const f = data.foods.find((x) => x.id === id);
   if (!f || !Number.isFinite(amount) || amount <= 0 || amount > f.quantity)
     throw Error("Choose a quantity within the amount remaining.");
+  if (f.quantityUnknown && amount !== f.quantity)
+    throw Error("Record a known quantity before using a partial amount.");
   const value =
     f.value === undefined ? undefined : (f.value * amount) / f.quantity;
   return {
@@ -253,7 +270,10 @@ export function validateBackup(input: unknown): Data {
     (!f.expiry || validDate(f.expiry)) &&
     ["use-by", "best-before"].includes(f.dateType) &&
     str(f.notes) &&
-    (f.value === undefined || num(f.value));
+    (f.value === undefined || num(f.value)) &&
+    [f.lowStock, f.quantityUnknown, f.dateTypeUnconfirmed].every(
+      (v) => v === undefined || typeof v === "boolean",
+    );
   if (
     d.version !== 1 ||
     !Array.isArray(d.foods) ||

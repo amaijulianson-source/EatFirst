@@ -6,6 +6,7 @@ A private kitchen companion for using food before it goes to waste. Use a local 
 
 ## Everyday features
 
+- Talk to EatFirst: English/Dutch conversational grocery drafts, corrections, local calendar dates, low-stock tracking, and explicit stock-check versus new-purchase review. Quick manual add and shopping-trip transfer remain available.
 - Today dashboard, date-aware inventory, search/category/storage/expiry filters, quick multi-add and partial eaten/used/discarded tracking.
 - Safety-related use-by dates kept distinct from quality-related best-before dates. No invented expiry dates or freshness predictions; past-date foods are excluded from automatic recipes.
 - 156 original curated recipes and 18 adaptive cooking templates, with Dutch/English aliases, quantity-aware matching, serving controls, missing-quantity shopping, and confirmed consumption.
@@ -115,8 +116,14 @@ Open **Recipes** for Cook with what we have, Eat these first, Almost ready, Quic
 
 Favorites, exclusions and cooking history are personal to the current account/kitchen **on this device**. Shared dietary/pantry settings remain in Settings. Export recipe memories separately in Recipes → Preferences; existing grocery backups remain unchanged. Three accurately matched, licensed local photographs supplement branded artwork; generated recipes use artwork. Unknown units and preparation forms need verification. There is no external AI, paid recipe API or production database migration. See [V3 recipe design and limitations](docs/V3_RECIPE_ENGINE.md) and [photo licenses](public/recipes/LICENSES.md).
 
-## V4 inventory entry
+## Talk to EatFirst inventory entry
 
-**Add food** now offers shopping-trip transfer, quick add, multi-photo import and batch expiry-date capture. In Shopping, mark purchases and use **Add purchased items to inventory** to review quantities/storage/dates and save atomically. Quick add reuses recent household groceries and confirmed device-local package patterns. Photo import reads English/Dutch labels and barcodes locally, supports multiple images, and requires editable review before saving. A date-only image can be matched to a draft or existing grocery. Missing years are never guessed.
+Open **Inventory → Add food → Talk to EatFirst**. Select **Check my stock** (replace current totals) or **Add new groceries** (new batches), choose English or Nederlands, and tap the microphone. Browser recognition may use Apple/Google services, may need internet, and can stop after silence. The app immediately shows when listening stops; tap **Resume listening** to continue the same private draft. Silence never saves or finishes a session.
 
-Prepare the free photo tools online once (about 9 MB); prepared OCR/barcode reading works offline. Bare/unlabelled foods cannot reliably be recognized. Optional Open Food Facts lookup sends only a barcode, never an image. Photos are not stored/uploaded; only confirmed groceries/notes sync. Device-local product patterns have their own backup; existing grocery and recipe-memory backups are preserved. No Supabase migration or paid service is required. See [V4 flows and limitations](docs/V4_ENTRY.md), [verification](docs/V4_VERIFICATION.md) and [OCR licenses](public/ocr/NOTICE.md).
+Use the editable **Your words** transcript with your phone keyboard’s dictation microphone when browser speech is unavailable, including some iPhone home-screen configurations. **Finish & review** stops capture and creates editable proposals; **Confirm inventory changes** applies them atomically. Names, counts, units, storage, dates, target batches and low-stock suggestions remain under your control. Nothing is shared before confirmation. Approximate/unspoken quantities stay unknown, and unspecified date types stay visibly unconfirmed. Spoken dates always require checking.
+
+Photo import, receipt reading, barcode lookup and date scanning have been removed, including their workers, OCR language assets and dependencies. Recipe photographs remain. Existing manual entry, purchased-item transfers, grocery backups, product-pattern backups, accounts, household policies and offline queues remain. No production SQL migration or paid API is introduced.
+
+Transcripts are interpreted locally using a bounded English/Dutch grammar with food spans, amounts, qualifiers and conversation state. This is not general human-level language understanding. Unexpected phrasing, unknown new products and ambiguous references may need editing. Unfinished transcripts/reviews are stored only on this device per account/kitchen, and removed on successful save or Cancel session. Confirmed inventory uses the existing shared data format with backwards-compatible optional flags. The app does not record audio or upload full transcripts to Supabase.
+
+See [voice design, privacy and device limitations](docs/VOICE_INVENTORY.md) and [verification](docs/VOICE_VERIFICATION.md). Historical V4 behavior is archived in [V4 entry notes](docs/V4_ENTRY.md); it is no longer the current interface.

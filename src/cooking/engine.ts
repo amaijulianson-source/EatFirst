@@ -92,6 +92,10 @@ export function checkIngredient(
   let unknown = false,
     form = false;
   for (const f of safe) {
+    if (f.quantityUnknown) {
+      unknown = true;
+      continue;
+    }
     const available = measure(f.quantity, f.unit);
     if (available.unit !== need.unit) {
       unknown = true;
@@ -366,6 +370,7 @@ export function confirmCooking(
     const f = data.foods.find((f) => f.id === id);
     if (
       !f ||
+      f.quantityUnknown ||
       !eligible(f, today) ||
       !recipe.ingredients.some(
         (i) => ingredientKey(i.name) === ingredientKey(f.name),

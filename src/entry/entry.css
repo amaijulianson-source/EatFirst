@@ -92,8 +92,7 @@
 .entry-review {
   margin-top: 28px;
 }
-.draft-card,
-.date-review {
+.draft-card {
   border: 1px solid var(--border);
   padding: 18px;
   border-radius: 16px;
@@ -129,7 +128,6 @@
   margin: 0 0 18px;
 }
 .draft-card summary,
-.entry-text summary,
 .entry-pattern-settings summary {
   padding: 12px 0;
   min-height: 44px;
@@ -157,57 +155,6 @@
   font-size: 0.8rem;
   padding: 16px 0;
 }
-.entry-upload-actions {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 12px;
-  margin: 20px 0;
-}
-.entry-upload-actions label {
-  position: relative;
-  margin: 0;
-  overflow: hidden;
-  cursor: pointer;
-}
-.entry-upload-actions input {
-  position: absolute;
-  opacity: 0;
-  width: 100%;
-  height: 100%;
-  inset: 0;
-  cursor: pointer;
-}
-.entry-upload-actions .disabled {
-  opacity: 0.5;
-  cursor: wait;
-}
-.entry-privacy {
-  background: var(--soft);
-  color: var(--green);
-  font-size: 0.8rem;
-  line-height: 1.65;
-  border-radius: 14px;
-  padding: 14px;
-}
-.entry-progress {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  padding: 14px;
-  border: 1px solid var(--border);
-  border-radius: 12px;
-  font-size: 0.8rem;
-}
-.entry-progress > span {
-  flex: 1;
-}
-.entry-progress > svg {
-  animation: entry-spin 2s linear infinite;
-}
-.entry-text textarea {
-  font-size: 0.8rem;
-  line-height: 1.6;
-}
 .entry-pattern-settings {
   margin-top: 26px;
   border-top: 1px solid var(--border);
@@ -225,31 +172,11 @@
   color: var(--muted);
   line-height: 1.65;
 }
-.barcode-review {
-  border-top: 1px solid var(--border);
-  padding-top: 10px;
-  margin-top: 14px;
-}
-.barcode-review small {
-  display: block;
-  line-height: 1.5;
-  color: var(--muted);
-}
 .finish-trip {
   margin-bottom: 22px;
 }
 .entry-review .section-heading h3 {
   margin-bottom: 0;
-}
-@keyframes entry-spin {
-  to {
-    transform: rotate(360deg);
-  }
-}
-@media (prefers-reduced-motion: reduce) {
-  .entry-progress > svg {
-    animation: none;
-  }
 }
 @media (max-width: 600px) {
   .entry-choice {
@@ -269,8 +196,7 @@
   .entry-grid {
     gap: 10px;
   }
-  .draft-card,
-  .date-review {
+  .draft-card {
     padding: 14px;
   }
   .entry-grid select {
@@ -279,15 +205,6 @@
   .entry-confirm > .btn {
     flex: 1;
     font-size: 0.8rem;
-  }
-  .entry-upload-actions {
-    flex-direction: column;
-  }
-  .entry-upload-actions label {
-    width: 100%;
-  }
-  .entry-progress {
-    flex-wrap: wrap;
   }
   .entry-pattern-settings .form-actions {
     flex-direction: column;

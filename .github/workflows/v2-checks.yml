@@ -2,7 +2,12 @@ name: Feature checks without deployment
 on:
   push:
     branches:
-      [feat/family-sharing-v2, feat/recipe-engine-v3, feat/smart-entry-v4]
+      [
+        feat/family-sharing-v2,
+        feat/recipe-engine-v3,
+        feat/smart-entry-v4,
+        feat/natural-voice-inventory,
+      ]
   pull_request:
     branches: [main]
 permissions:
@@ -29,6 +34,11 @@ jobs:
         timeout-minutes: 5
       - run: npm run test:family-local
       - run: npm run test:e2e
+      - name: Install WebKit for voice UI compatibility
+        run: npx playwright install --with-deps webkit
+        timeout-minutes: 5
+      - name: Test voice UI and interruption recovery in WebKit
+        run: EATFIRST_TEST_WEBKIT=true npx playwright test tests/e2e/voice.spec.ts --project=safari
       - run: npm run check:cloud-config && npm run build
         env:
           BASE_PATH: /EatFirst/

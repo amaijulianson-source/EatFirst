@@ -1,0 +1,7 @@
+{
+  "realBrowserApiExposed": true,
+  "status": "Microphone off · Resume listening",
+  "serviceMessage": "The speech service did not start. Try Safari with Siri/Dictation enabled, or use keyboard dictation below.",
+  "transcriptionAccuracy": "not tested: synthetic browser microphone, no private audio",
+  "speechEngineInjected": false
+}

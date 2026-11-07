@@ -1,0 +1,273 @@
+.voice-flow {
+  --voice-accent: var(--green);
+}
+.voice-heading {
+  margin: 23px 0;
+}
+.voice-kicker {
+  display: block;
+  color: var(--green);
+  font-size: 0.72rem;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  font-weight: 700;
+}
+.voice-heading h3 {
+  font-family: Georgia, serif;
+  font-size: 1.9rem;
+  font-weight: 500;
+  line-height: 1.15;
+  margin: 10px 0;
+}
+.voice-heading p {
+  color: var(--muted);
+  line-height: 1.7;
+  margin-bottom: 10px;
+}
+.voice-options {
+  margin: 16px 0;
+}
+.voice-options label {
+  font-size: 0.75rem;
+}
+.voice-options select {
+  font-size: 0.85rem;
+}
+.voice-capture {
+  text-align: center;
+  padding: 25px 20px;
+  background: var(--soft);
+  border: 1px solid var(--border);
+  border-radius: 22px;
+  margin: 20px 0 14px;
+}
+.voice-mic {
+  width: 84px;
+  height: 84px;
+  border-radius: 50%;
+  border: 0;
+  background: var(--green);
+  color: var(--surface);
+  display: grid;
+  place-items: center;
+  margin: 0 auto 18px;
+  box-shadow: 0 0 0 9px color-mix(in srgb, var(--green) 8%, transparent);
+}
+.voice-mic:disabled {
+  opacity: 0.5;
+}
+.voice-mic:focus-visible {
+  outline: 3px solid var(--green);
+  outline-offset: 12px;
+}
+.voice-capture.is-listening .voice-mic {
+  animation: voice-breathe 2s ease-in-out infinite;
+}
+.voice-capture strong {
+  display: block;
+  font-size: 1.05rem;
+  color: var(--text);
+}
+.voice-capture p {
+  font-size: 0.83rem;
+  line-height: 1.65;
+  color: var(--muted);
+  margin: 10px auto;
+  max-width: 380px;
+}
+.voice-capture small {
+  color: var(--green);
+  font-size: 0.73rem;
+}
+.voice-disclosure {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  font-size: 0.73rem;
+  color: var(--muted);
+  line-height: 1.65;
+  margin: 14px 0 23px;
+}
+.voice-disclosure svg {
+  flex-shrink: 0;
+  margin-top: 3px;
+}
+.voice-disclosure a {
+  color: var(--green);
+  text-underline-offset: 3px;
+}
+.voice-transcript textarea {
+  font-size: 1rem;
+  line-height: 1.75;
+  resize: vertical;
+  width: 100%;
+}
+.voice-transcript textarea:read-only {
+  background: var(--soft);
+}
+.voice-interim {
+  border-left: 3px solid var(--green);
+  padding: 10px 14px;
+  line-height: 1.6;
+  color: var(--muted);
+}
+.voice-interim small {
+  display: block;
+  font-size: 0.7rem;
+}
+.voice-detected {
+  border: 1px solid var(--border);
+  border-radius: 18px;
+  padding: 16px;
+  margin: 23px 0;
+}
+.voice-detected h3 {
+  font-size: 0.95rem;
+  margin: 0;
+}
+.voice-detected ul {
+  padding: 0;
+  margin: 0;
+  list-style: none;
+}
+.voice-detected li {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 12px;
+  padding: 12px 0;
+  border-bottom: 1px solid var(--border);
+  font-size: 0.85rem;
+}
+.voice-detected li:last-child {
+  border-bottom: 0;
+  padding-bottom: 0;
+}
+.voice-detected li span {
+  font-size: 0.78rem;
+  color: var(--muted);
+  text-align: right;
+  line-height: 1.5;
+}
+.voice-action {
+  font-size: 0.78rem;
+  font-weight: 600;
+  line-height: 1.6;
+  padding: 9px 12px;
+  background: var(--soft);
+  border-radius: 9px;
+  color: var(--green);
+}
+.voice-review-card > label,
+.voice-review-card > .entry-grid {
+  margin-top: 14px;
+}
+.voice-low {
+  margin: 18px 0 14px !important;
+}
+.voice-ack {
+  padding: 17px 0;
+  font-size: 0.82rem;
+}
+.voice-warnings {
+  font-size: 0.78rem;
+  line-height: 1.7;
+  margin-top: 10px;
+}
+.voice-warnings summary {
+  cursor: pointer;
+  min-height: 44px;
+  padding: 12px 0;
+  color: var(--green);
+}
+.voice-warnings ul {
+  padding-left: 20px;
+  margin-top: 0;
+}
+.voice-private {
+  line-height: 1.7;
+  padding-top: 12px;
+}
+.voice-flow .banner ul {
+  padding-left: 18px;
+  overflow-wrap: anywhere;
+}
+.voice-flow .banner {
+  line-height: 1.6;
+  font-size: 0.8rem;
+}
+.entry-choice:first-child {
+  border-color: var(--green);
+  background: var(--soft);
+}
+@keyframes voice-breathe {
+  50% {
+    box-shadow: 0 0 0 14px color-mix(in srgb, var(--green) 11%, transparent);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .voice-capture.is-listening .voice-mic {
+    animation: none;
+  }
+}
+@media (max-width: 400px) {
+  .voice-heading h3 {
+    font-size: 1.65rem;
+  }
+  .voice-detected li {
+    flex-direction: column;
+    gap: 3px;
+  }
+  .voice-detected li span {
+    text-align: left;
+  }
+}
+
+.voice-details {
+  margin-top: 10px;
+  font-size: 0.8rem;
+  line-height: 1.6;
+}
+.voice-details > summary {
+  color: var(--green);
+  cursor: pointer;
+  min-height: 44px;
+  padding: 12px 0;
+}
+
+.voice-language-settings > summary {
+  color: var(--green);
+  padding: 10px 0;
+  min-height: 44px;
+  font-size: 0.8rem;
+  cursor: pointer;
+}
+@media (max-width: 600px) {
+  .voice-heading {
+    margin: 17px 0;
+  }
+  .voice-capture {
+    padding: 18px 14px;
+  }
+}
+
+.voice-mode-select {
+  text-align: left;
+  font-size: 0.76rem;
+  margin: 0 0 22px;
+}
+.voice-mode-select select {
+  width: 100%;
+  margin-top: 7px;
+  font-size: 0.84rem;
+}
+
+/* A floating review bar must never obscure microphone status on short WebKit viewports. */
+.voice-capturing .entry-confirm {
+  position: static;
+}
+.voice-finish {
+  margin: 8px auto 0;
+  min-height: 44px;
+  justify-content: center;
+}
