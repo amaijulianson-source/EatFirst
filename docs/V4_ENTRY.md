@@ -1,5 +1,7 @@
 # EatFirst V4: faster inventory entry
 
+> Historical V4 record. Photo/scanning input was later removed in the Talk to EatFirst replacement; see [current voice entry](VOICE_INVENTORY.md). The results below describe V4, not current speech recognition.
+
 **Add food** opens four methods: From shopping trip, Quick add, Import from photos, Scan expiry dates. Existing food editing and single-item Put away remain available. All V3 recipes, authentication, household sharing and backup behavior remain intact.
 
 ## Shopping trip
@@ -34,4 +36,4 @@ The ordinary app still precaches roughly 1.5 MiB. OCR tools/models are deliberat
 
 The public model cache contains no user photographs or OCR results. The existing IndexedDB schema version, Data backup format, Supabase tables, policies, auth/session keys and household queues are unchanged. No production SQL or account change is required. Existing grocery backups remain compatible; product-pattern backup is separate, like V3 recipe memories. Never clear storage to update a PWA. Close old app windows and reopen online to activate the new worker. Physical camera/HEIC support and update timing vary by browser/OS.
 
-Licenses/provenance: [local tool notice](../public/ocr/NOTICE.md). This release uses original generated text/barcode fixtures to test recognition rather than private family photos. Full Google account interaction was owner-tested in V2; V4 preserves that implementation.
+Licenses/provenance: [local tool notice](https://github.com/amaijulianson-source/EatFirst/blob/4bc141e31baeeed542610d5a239c86fb762d1417/public/ocr/NOTICE.md). This release uses original generated text/barcode fixtures to test recognition rather than private family photos. Full Google account interaction was owner-tested in V2; V4 preserves that implementation.

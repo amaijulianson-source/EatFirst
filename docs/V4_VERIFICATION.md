@@ -1,5 +1,7 @@
 # EatFirst V4 verification
 
+> Historical V4 record. Photo/scanning input was later removed in the Talk to EatFirst replacement; see [current voice entry](VOICE_INVENTORY.md). The results below describe V4, not current speech recognition.
+
 ## Local checks actually executed
 
 - ESLint and TypeScript passed.

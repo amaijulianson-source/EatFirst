@@ -154,6 +154,77 @@ try {
   await expect(a.getByRole("button", { name: /Eggs 1 pieces/ }), {
     timeout: 15000,
   }).toBeVisible();
+  // Voice uses the same confirmed atomic deltas, never shared transcripts.
+  await a.getByRole("button", { name: "Add food", exact: true }).click();
+  await a
+    .getByRole("button", { name: "Talk to EatFirst", exact: true })
+    .click();
+  await a
+    .getByLabel("Your words", { exact: true })
+    .fill("We have seven eggs. Some cheese. The milk is nearly empty.");
+  await a.getByRole("button", { name: "Finish & review", exact: true }).click();
+  await a
+    .getByRole("checkbox", {
+      name: "I’ve checked uncertain names, amounts, dates and references.",
+    })
+    .check();
+  await a
+    .getByRole("button", { name: "Confirm inventory changes", exact: true })
+    .click();
+  await a.getByRole("button", { name: "Done", exact: true }).click();
+  await expect
+    .poll(async () => {
+      const r = await owner.rpc("household_snapshot", { h: house });
+      return [
+        r.data?.foods.find((f) => f.name === "Eggs")?.quantity,
+        r.data?.foods.find((f) => f.name === "Milk")?.lowStock,
+        r.data?.foods.find((f) => f.name === "Cheese")?.quantityUnknown,
+      ];
+    })
+    .toEqual([7, true, true]);
+  await b.evaluate(() => window.dispatchEvent(new Event("focus")));
+  await expect(b.getByRole("button", { name: /Eggs 7 pieces/ })).toBeVisible({
+    timeout: 15000,
+  });
+  await expect(
+    b.getByRole("button", { name: /Milk Low stock 1 pieces/ }),
+  ).toBeVisible();
+  await expect(
+    b.getByRole("button", { name: /Cheese Quantity unspecified/ }),
+  ).toBeVisible();
+  const voiceSnapshot = await owner.rpc("household_snapshot", { h: house });
+  assert(!JSON.stringify(voiceSnapshot.data).includes("We have seven eggs"));
+  await cb.setOffline(true);
+  await b.getByRole("button", { name: "Add food", exact: true }).click();
+  await b
+    .getByRole("button", { name: "Talk to EatFirst", exact: true })
+    .click();
+  await b
+    .getByLabel("Your words", { exact: true })
+    .fill("Actually we have eight eggs");
+  await b.getByRole("button", { name: "Finish & review", exact: true }).click();
+  await b
+    .getByRole("button", { name: "Confirm inventory changes", exact: true })
+    .click();
+  await b.getByRole("button", { name: "Done", exact: true }).click();
+  await b.reload();
+  await expect(b.getByRole("button", { name: /Eggs 8 pieces/ })).toBeVisible();
+  await cb.setOffline(false);
+  await expect
+    .poll(
+      async () =>
+        (await member.rpc("household_snapshot", { h: house })).data?.foods.find(
+          (f) => f.name === "Eggs",
+        )?.quantity,
+      { timeout: 20000 },
+    )
+    .toBe(8);
+  assert.equal(
+    (await member.rpc("household_snapshot", { h: house })).data.foods.filter(
+      (f) => f.name === "Eggs",
+    ).length,
+    1,
+  );
   await b.goto(`${base}#Shopping`);
   await b.getByLabel("Shopping item name").fill("Bread");
   await b.getByLabel("New shopping item quantity").fill("1 loaf");
@@ -228,11 +299,11 @@ try {
   await expect(a.getByRole("button", { name: /Milk 1 pieces/ })).toHaveCount(0);
   assert.deepEqual(errors, []);
   await a.screenshot({
-    path: "artifacts/v2-preserved-local-mobile.png",
+    path: "test-results/family-local/preserved-local-mobile.png",
     fullPage: true,
   });
   await b.screenshot({
-    path: "artifacts/v2-shopping-mode-mobile.png",
+    path: "test-results/family-local/shopping-mode-mobile.png",
     fullPage: true,
   });
   console.log(
@@ -246,6 +317,9 @@ try {
         offlineQueueReloadReconnect: "passed",
         frequentlyBought: "passed",
         atomicShoppingTransfer: "passed",
+        confirmedVoiceReconcileLowStockUnknownQuantity: "passed",
+        voiceOfflineQueueReloadAndNoDuplicate: "passed",
+        sharedTranscripts: "none",
         revokedAccessPendingExport: "passed",
         pageErrors: errors,
         realtimeWebsocket: "separate verification required",

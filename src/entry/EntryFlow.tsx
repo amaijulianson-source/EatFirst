@@ -1,34 +1,25 @@
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import {
   ArrowRight,
-  Camera,
-  CalendarDays,
   Check,
   ClipboardList,
   Plus,
   ShoppingBasket,
   Trash2,
-  ScanLine,
   Package,
-  RefreshCw,
 } from "lucide-react";
 import { categories, locations, type Data, type Food } from "../core";
 import {
   makeDraft,
   draftFromShopping,
-  parsePhotoText,
-  mergeDetections,
   sharedPatterns,
   validatePatterns,
   learnPatterns,
   saveDrafts,
-  assignDates,
   normalizeProduct,
   commonGroceries,
   type Draft,
   type Pattern,
-  type DateCandidate,
-  type ExpiryChange,
 } from "./model";
 import {
   readPatterns,
@@ -37,20 +28,15 @@ import {
   storeDraft,
   clearDraft,
 } from "./storage";
+import { VoiceInventory } from "../voice/VoiceInventory";
+import { Mic } from "lucide-react";
 import "./entry.css";
-export type EntryMode = "choose" | "shopping" | "quick" | "photo" | "expiry";
+export type EntryMode = "choose" | "shopping" | "quick" | "voice";
 type ModalComponent = (p: {
   title: string;
   children: ReactNode;
   close: () => void;
 }) => ReactNode;
-type ScanDate = DateCandidate & {
-  id: string;
-  itemId: string;
-  selected: boolean;
-  dateType: Food["dateType"];
-  source: string;
-};
 export function EntryFlow({
   mode: initialMode,
   data,
@@ -80,20 +66,12 @@ export function EntryFlow({
     [error, setError] = useState(""),
     [message, setMessage] = useState(""),
     [busy, setBusy] = useState(false),
-    [progress, setProgress] = useState(""),
     [merge, setMerge] = useState(false),
-    [raw, setRaw] = useState(""),
-    [scanDates, setScanDates] = useState<ScanDate[]>([]),
     [savedIds, setSavedIds] = useState<string[]>([]),
     [ready, setReady] = useState(false),
-    [photoReady, setPhotoReady] = useState(false),
-    [revision, setRevision] = useState(0),
-    [filesRead, setFilesRead] = useState(0);
-  const preparation = useRef<AbortController | null>(null);
+    [revision, setRevision] = useState(0);
   const baseline = useRef(structuredClone(data)),
     alive = useRef(true),
-    epoch = useRef(0),
-    reader = useRef<import("./recognition").LocalPhotoReader | null>(null),
     patternRef = useRef(patterns),
     savingDraft = useRef(Promise.resolve());
   patternRef.current = patterns;
@@ -108,11 +86,6 @@ export function EntryFlow({
     alive.current = true;
     return () => {
       alive.current = false;
-      // This is a cancellation generation, not a DOM ref.
-      // eslint-disable-next-line react-hooks/exhaustive-deps
-      epoch.current++;
-      void reader.current?.stop();
-      preparation.current?.abort();
     };
   }, []);
   useEffect(() => {
@@ -120,11 +93,10 @@ export function EntryFlow({
     setReady(false);
     setError("");
     setRows([]);
-    setScanDates([]);
     baseline.current = structuredClone(data);
     void Promise.all([
       readPatterns(identity),
-      mode !== "choose" && mode !== "expiry"
+      mode !== "choose" && mode !== "voice"
         ? readDraft(key)
         : Promise.resolve(null),
     ])
@@ -155,7 +127,7 @@ export function EntryFlow({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [identity, mode, key]);
   useEffect(() => {
-    if (!ready || savedIds.length || mode === "choose" || mode === "expiry")
+    if (!ready || savedIds.length || mode === "choose" || mode === "voice")
       return;
     const draft = { rows, baseline: baseline.current };
     savingDraft.current = savingDraft.current
@@ -271,154 +243,9 @@ export function EntryFlow({
     baseline.current = structuredClone(result.data);
     setMessage(
       rows.some((r) => r.shoppingId)
-        ? "Saved to inventory. Selected shopping items moved together with the groceries. Add package dates now or finish."
-        : "Saved to inventory. Add visible package dates now or finish.",
+        ? "Saved to inventory. Selected shopping items moved together with the groceries."
+        : "Saved to inventory.",
     );
-  }
-  async function photos(files: FileList | null) {
-    if (!files?.length) return;
-    const list = [...files];
-    if (
-      list.length > 8 ||
-      list.some((f) => f.size > 12 * 1024 * 1024) ||
-      list.reduce((n, f) => n + f.size, 0) > 40 * 1024 * 1024
-    )
-      throw Error("Choose up to 8 images, under 12 MB each and 40 MB total.");
-    const token = ++epoch.current;
-    const { LocalPhotoReader } = await import("./recognition");
-    reader.current = new LocalPhotoReader((s) => {
-      if (alive.current && epoch.current === token) setProgress(s);
-    });
-    let detected: Draft[] = [],
-      read = 0;
-    const dates: ScanDate[] = [];
-    const errors: string[] = [];
-    for (const file of list) {
-      if (epoch.current !== token) break;
-      setProgress(`Photo ${read + 1}/${list.length}: ${file.name}`);
-      try {
-        const recognized = await reader.current.read(file);
-        if (epoch.current !== token) break;
-        const parsed = parsePhotoText(
-          recognized.text + "\n" + recognized.barcodes.join("\n"),
-          file.name,
-          combined,
-        );
-        detected = [...detected, ...parsed.drafts];
-        for (const barcode of [
-          ...new Set([...recognized.barcodes, ...parsed.barcodes]),
-        ])
-          if (!parsed.drafts.some((d) => d.barcode === barcode)) {
-            const d = makeDraft("", "photo", combined);
-            d.barcode = barcode;
-            d.name = "";
-            d.sources = [file.name];
-            d.review = [
-              "Barcode found. Match a saved pattern, look it up online or type the product name.",
-            ];
-            detected.push(d);
-          }
-        const itemNames = parsed.drafts.map((d) =>
-          normalizeProduct(d.name).name.toLowerCase(),
-        );
-        for (const candidate of parsed.dates) {
-          const matching = data.foods
-            .filter((f) => !savedIds.length || savedIds.includes(f.id))
-            .filter((f) =>
-              itemNames.includes(normalizeProduct(f.name).name.toLowerCase()),
-            );
-          dates.push({
-            ...candidate,
-            id: crypto.randomUUID(),
-            source: file.name,
-            itemId: matching.length === 1 ? matching[0].id : "",
-            selected: false,
-            dateType: candidate.type ?? "use-by",
-          });
-        }
-        read++;
-        setRaw((old) => (old + "\n\n" + recognized.text).slice(-18000));
-      } catch (e) {
-        errors.push(`${file.name}: ${(e as Error).message}`);
-      }
-    }
-    await reader.current?.stop();
-    reader.current = null;
-    if (epoch.current !== token || !alive.current) return;
-    setFilesRead((n) => n + read);
-    setPhotoReady(read > 0);
-    setRows((old) => mergeDetections([...old, ...detected]));
-    setScanDates((old) => [...old, ...dates]);
-    setProgress("");
-    setMessage(
-      `${read} photos read. ${detected.length} item suggestions and ${dates.length} date candidates. Nothing is saved until you confirm.`,
-    );
-    if (errors.length) setError(errors.join("\n"));
-    if (!detected.length && !dates.length && !errors.length)
-      setMessage(
-        "No clear labels or dates were recognized. Try close-ups with good light, paste label text below, or add items manually. Overview photos without readable labels cannot reliably identify products.",
-      );
-  }
-  async function setDates() {
-    if (!scopeGuard())
-      throw Error("Your account or kitchen changed. Reopen the scan.");
-    const changes: ExpiryChange[] = scanDates
-      .filter((s) => s.selected)
-      .map((s) => ({ id: s.itemId, expiry: s.date, dateType: s.dateType }));
-    if (!changes.length)
-      throw Error("Select a date and inventory item to update.");
-    if (changes.some((c) => !c.id))
-      throw Error("Match every selected date to an item.");
-    await commit(
-      assignDates(data, changes, baseline.current),
-      "Confirmed package dates saved",
-    );
-    setScanDates([]);
-    baseline.current = structuredClone(data);
-    setMessage(
-      "Confirmed dates saved. Past dates remain clearly marked in inventory.",
-    );
-  }
-  function parsePasted() {
-    const parsed = parsePhotoText(raw, "Pasted label text", combined);
-    if (mode === "expiry") {
-      setScanDates((old) => [
-        ...old,
-        ...parsed.dates.map((c) => ({
-          ...c,
-          id: crypto.randomUUID(),
-          itemId: "",
-          selected: false,
-          dateType: c.type ?? ("use-by" as const),
-          source: "Pasted label text",
-        })),
-      ]);
-    } else {
-      setRows((old) => mergeDetections([...old, ...parsed.drafts]));
-      setScanDates((old) => [
-        ...old,
-        ...parsed.dates.map((c) => ({
-          ...c,
-          id: crypto.randomUUID(),
-          itemId: "",
-          selected: false,
-          dateType: c.type ?? ("use-by" as const),
-          source: "Pasted label text",
-        })),
-      ]);
-    }
-    setMessage(
-      `Found ${parsed.drafts.length} products and ${parsed.dates.length} dates. Review before saving.`,
-    );
-  }
-  function cancelScan() {
-    epoch.current++;
-    void reader.current?.stop();
-    reader.current = null;
-    preparation.current?.abort();
-    setBusy(false);
-    setProgress("");
-    setMessage("Reading stopped. Existing review items are kept.");
   }
   const units = [
     "pieces",
@@ -435,9 +262,19 @@ export function EntryFlow({
     "bunch",
     "box",
   ];
-  const activeFoods = savedIds.length
-    ? data.foods.filter((f) => savedIds.includes(f.id))
-    : data.foods;
+  if (mode === "voice")
+    return (
+      <Modal title="Talk to EatFirst" close={close}>
+        <VoiceInventory
+          data={data}
+          identity={identity}
+          commit={commit}
+          scopeGuard={scopeGuard}
+          close={close}
+          back={() => setMode("choose")}
+        />
+      </Modal>
+    );
   return (
     <Modal
       title={
@@ -445,18 +282,9 @@ export function EntryFlow({
           ? "Add to inventory"
           : mode === "shopping"
             ? "Put away your shopping"
-            : mode === "quick"
-              ? "Quick add"
-              : mode === "photo"
-                ? "Import from photos"
-                : "Assign package dates"
+            : "Quick add"
       }
-      close={() => {
-        epoch.current++;
-        void reader.current?.stop();
-        preparation.current?.abort();
-        close();
-      }}
+      close={close}
     >
       {error && (
         <div className="banner danger" role="alert">
@@ -473,6 +301,12 @@ export function EntryFlow({
           {(
             [
               {
+                mode: "voice",
+                icon: Mic,
+                title: "Talk to EatFirst",
+                body: "Describe your kitchen naturally. Review every change before saving.",
+              },
+              {
                 mode: "shopping",
                 icon: ShoppingBasket,
                 title: "From shopping trip",
@@ -483,18 +317,6 @@ export function EntryFlow({
                 icon: Plus,
                 title: "Quick add",
                 body: "One item or a few. Reuse your common groceries.",
-              },
-              {
-                mode: "photo",
-                icon: Camera,
-                title: "Import from photos",
-                body: "Multiple label, product, barcode or receipt photos.",
-              },
-              {
-                mode: "expiry",
-                icon: CalendarDays,
-                title: "Scan expiry dates",
-                body: "Match package dates to groceries already in your kitchen.",
               },
             ] as const
           ).map((m) => (
@@ -518,8 +340,8 @@ export function EntryFlow({
             </button>
           ))}
           <p className="muted small">
-            All additions go through a review. No expiry dates are invented and
-            no photos are uploaded to a server.
+            Speak naturally or add groceries by hand. Nothing from a voice
+            session is shared until you confirm.
           </p>
         </div>
       ) : (
@@ -538,30 +360,16 @@ export function EntryFlow({
             <p role="status">Opening your kitchen’s saved patterns…</p>
           ) : (
             <>
-              {savedIds.length > 0 && mode !== "expiry" ? (
+              {savedIds.length > 0 ? (
                 <div className="entry-success">
                   <Check size={30} />
                   <h3>Your groceries are in.</h3>
                   <p>
-                    Add visible package dates now, or leave them blank and scan
-                    later.
+                    You can edit dates and quantities any time in Inventory.
                   </p>
-                  <div className="form-actions">
-                    <button className="btn secondary" onClick={close}>
-                      Done
-                    </button>
-                    <button
-                      className="btn primary"
-                      onClick={() => {
-                        setMode("expiry");
-                        setMessage(
-                          "Choose the matching item and confirm each date.",
-                        );
-                      }}
-                    >
-                      Scan dates for these items
-                    </button>
-                  </div>
+                  <button className="btn primary" onClick={close}>
+                    Done
+                  </button>
                 </div>
               ) : (
                 <>
@@ -732,391 +540,7 @@ export function EntryFlow({
                       </p>
                     </section>
                   )}
-                  {(mode === "photo" || mode === "expiry") && (
-                    <section className="photo-entry">
-                      <div className="entry-intro">
-                        <Camera size={25} />
-                        <p>
-                          {mode === "expiry"
-                            ? "Photograph the printed date closely, ideally with the product name. Select the target item and confirm every date."
-                            : "Add up to 8 photos at a time: clear product labels, package sizes, barcodes, receipt lines or overview photos with readable labels. Bare groceries cannot reliably be identified without text."}
-                        </p>
-                      </div>
-                      <p className="entry-privacy">
-                        Recognition runs on this device. Only groceries and
-                        notes you confirm are shared. First preparation
-                        downloads about 9 MB of free tools; they are then cached
-                        for offline use. Nothing is added automatically.
-                      </p>
-                      <div className="entry-upload-actions">
-                        <label
-                          className={`btn primary ${busy ? "disabled" : ""}`}
-                        >
-                          <Camera size={18} />
-                          Choose multiple photos
-                          <input
-                            type="file"
-                            accept="image/*"
-                            multiple
-                            disabled={busy}
-                            onChange={(e) => {
-                              const files = e.target.files;
-                              void run(() => photos(files));
-                              e.target.value = "";
-                            }}
-                          />
-                        </label>
-                        <label
-                          className={`btn secondary ${busy ? "disabled" : ""}`}
-                        >
-                          <ScanLine size={18} />
-                          Take a photo
-                          <input
-                            type="file"
-                            accept="image/*"
-                            capture="environment"
-                            disabled={busy}
-                            onChange={(e) => {
-                              const files = e.target.files;
-                              void run(() => photos(files));
-                              e.target.value = "";
-                            }}
-                          />
-                        </label>
-                      </div>
-                      {progress && (
-                        <div className="entry-progress" role="status">
-                          <RefreshCw size={18} />
-                          <span>{progress}</span>
-                          <button className="text-btn" onClick={cancelScan}>
-                            Stop reading
-                          </button>
-                        </div>
-                      )}
-                      <button
-                        className="text-btn"
-                        disabled={busy}
-                        onClick={() =>
-                          void run(async () => {
-                            const tools = await import("./recognition");
-                            preparation.current = new AbortController();
-                            await tools.preparePhotoTools(
-                              setProgress,
-                              preparation.current.signal,
-                            );
-                            setPhotoReady(await tools.photoToolsReady());
-                            setProgress("");
-                          })
-                        }
-                      >
-                        {photoReady
-                          ? "Check offline photo tools"
-                          : "Prepare offline photo tools"}
-                      </button>
-                      <p className="muted small">
-                        {filesRead
-                          ? `${filesRead} photos read this session. `
-                          : ""}
-                        Clear, flat labels work best. Keep only the relevant
-                        date/product in frame. OCR may confuse letters and
-                        numbers.
-                      </p>
-                      <details className="entry-text">
-                        <summary>Review or paste recognized label text</summary>
-                        <label>
-                          Label or receipt text
-                          <textarea
-                            rows={5}
-                            value={raw}
-                            maxLength={18000}
-                            onChange={(e) => setRaw(e.target.value)}
-                            placeholder={"Halfvolle melk 1L\nTHT 07/11/2026"}
-                          />
-                        </label>
-                        <button
-                          className="btn secondary"
-                          disabled={busy}
-                          onClick={parsePasted}
-                        >
-                          Read pasted text
-                        </button>
-                      </details>
-                      {mode === "photo" && (
-                        <>
-                          <button
-                            className="btn secondary full"
-                            disabled={busy}
-                            onClick={() =>
-                              setRows((old) => [
-                                ...old,
-                                makeDraft("", "photo", combined),
-                              ])
-                            }
-                          >
-                            <Plus size={17} />
-                            Add an item manually
-                          </button>
-                          {scanDates.length > 0 && (
-                            <details className="photo-date-candidates" open>
-                              <summary>
-                                Match date photos to the review (
-                                {scanDates.length})
-                              </summary>
-                              {scanDates.map((s) => (
-                                <div className="date-review" key={s.id}>
-                                  <p>
-                                    <strong>{s.raw}</strong> · {s.source}
-                                  </p>
-                                  <p className="muted small">{s.reason}</p>
-                                  <label>
-                                    Review item for this date
-                                    <select
-                                      value={s.itemId}
-                                      onChange={(e) =>
-                                        setScanDates((old) =>
-                                          old.map((c) =>
-                                            c.id === s.id
-                                              ? { ...c, itemId: e.target.value }
-                                              : c,
-                                          ),
-                                        )
-                                      }
-                                    >
-                                      <option value="">
-                                        Choose a review item
-                                      </option>
-                                      {rows.map((r, i) => (
-                                        <option key={r.id} value={r.id}>
-                                          {r.name || `Item ${i + 1}`}
-                                        </option>
-                                      ))}
-                                    </select>
-                                  </label>
-                                  <div className="entry-grid">
-                                    <label>
-                                      Package date
-                                      <input
-                                        type="date"
-                                        value={s.date}
-                                        onChange={(e) =>
-                                          setScanDates((old) =>
-                                            old.map((c) =>
-                                              c.id === s.id
-                                                ? { ...c, date: e.target.value }
-                                                : c,
-                                            ),
-                                          )
-                                        }
-                                      />
-                                    </label>
-                                    <label>
-                                      Package date type
-                                      <select
-                                        value={s.dateType}
-                                        onChange={(e) =>
-                                          setScanDates((old) =>
-                                            old.map((c) =>
-                                              c.id === s.id
-                                                ? {
-                                                    ...c,
-                                                    dateType: e.target
-                                                      .value as Food["dateType"],
-                                                  }
-                                                : c,
-                                            ),
-                                          )
-                                        }
-                                      >
-                                        <option value="use-by">
-                                          Use-by · safety
-                                        </option>
-                                        <option value="best-before">
-                                          Best-before · quality
-                                        </option>
-                                      </select>
-                                    </label>
-                                  </div>
-                                  <button
-                                    className="btn secondary"
-                                    disabled={!s.itemId || !s.date}
-                                    onClick={() => {
-                                      edit(s.itemId, {
-                                        expiry: s.date,
-                                        dateType: s.dateType,
-                                      });
-                                      setScanDates((old) =>
-                                        old.filter((c) => c.id !== s.id),
-                                      );
-                                    }}
-                                  >
-                                    Confirm date for this draft
-                                  </button>
-                                  <button
-                                    className="text-btn"
-                                    onClick={() =>
-                                      setScanDates((old) =>
-                                        old.filter((c) => c.id !== s.id),
-                                      )
-                                    }
-                                  >
-                                    Ignore this date
-                                  </button>
-                                </div>
-                              ))}
-                            </details>
-                          )}
-                        </>
-                      )}
-                      {mode === "expiry" && (
-                        <>
-                          <p className="muted small">
-                            The date’s year is required. Numeric dates are read
-                            as day/month/year unless written YYYY-MM-DD. Confirm
-                            ambiguous dates and whether the label is use-by or
-                            best-before.
-                          </p>
-                          {scanDates.map((s) => (
-                            <article className="date-review" key={s.id}>
-                              <label className="entry-checkbox">
-                                <input
-                                  type="checkbox"
-                                  checked={s.selected}
-                                  onChange={(e) =>
-                                    setScanDates((old) =>
-                                      old.map((c) =>
-                                        c.id === s.id
-                                          ? { ...c, selected: e.target.checked }
-                                          : c,
-                                      ),
-                                    )
-                                  }
-                                />
-                                Apply this date
-                              </label>
-                              <p>
-                                <strong>{s.raw || "Manual date"}</strong> ·{" "}
-                                {s.source}
-                              </p>
-                              <p className="muted small">{s.reason}</p>
-                              <label>
-                                Match inventory item
-                                <select
-                                  value={s.itemId}
-                                  onChange={(e) =>
-                                    setScanDates((old) =>
-                                      old.map((c) =>
-                                        c.id === s.id
-                                          ? { ...c, itemId: e.target.value }
-                                          : c,
-                                      ),
-                                    )
-                                  }
-                                >
-                                  <option value="">
-                                    Choose the correct item
-                                  </option>
-                                  {activeFoods.map((f) => (
-                                    <option key={f.id} value={f.id}>
-                                      {f.name} · {f.quantity} {f.unit} ·{" "}
-                                      {f.location}
-                                      {f.expiry ? ` · current ${f.expiry}` : ""}
-                                    </option>
-                                  ))}
-                                </select>
-                              </label>
-                              <div className="entry-grid">
-                                <label>
-                                  Confirmed expiry date
-                                  <input
-                                    type="date"
-                                    value={s.date}
-                                    onChange={(e) =>
-                                      setScanDates((old) =>
-                                        old.map((c) =>
-                                          c.id === s.id
-                                            ? { ...c, date: e.target.value }
-                                            : c,
-                                        ),
-                                      )
-                                    }
-                                  />
-                                </label>
-                                <label>
-                                  Confirmed date type
-                                  <select
-                                    value={s.dateType}
-                                    onChange={(e) =>
-                                      setScanDates((old) =>
-                                        old.map((c) =>
-                                          c.id === s.id
-                                            ? {
-                                                ...c,
-                                                dateType: e.target
-                                                  .value as Food["dateType"],
-                                              }
-                                            : c,
-                                        ),
-                                      )
-                                    }
-                                  >
-                                    <option value="use-by">
-                                      Use-by · safety
-                                    </option>
-                                    <option value="best-before">
-                                      Best-before · quality
-                                    </option>
-                                  </select>
-                                </label>
-                              </div>
-                              <button
-                                className="text-btn"
-                                onClick={() =>
-                                  setScanDates((old) =>
-                                    old.filter((c) => c.id !== s.id),
-                                  )
-                                }
-                              >
-                                Remove date candidate
-                              </button>
-                            </article>
-                          ))}
-                          <button
-                            className="btn secondary full"
-                            onClick={() =>
-                              setScanDates((old) => [
-                                ...old,
-                                {
-                                  id: crypto.randomUUID(),
-                                  raw: "",
-                                  date: "",
-                                  review: true,
-                                  reason:
-                                    "Enter the exact date from the package; no date is guessed.",
-                                  source: "Manual",
-                                  itemId: "",
-                                  selected: true,
-                                  dateType: "use-by",
-                                },
-                              ])
-                            }
-                          >
-                            <Plus size={17} />
-                            Add a date manually
-                          </button>
-                          <button
-                            className="btn primary full"
-                            disabled={
-                              busy || !scanDates.some((s) => s.selected)
-                            }
-                            onClick={() => void run(setDates)}
-                          >
-                            Save confirmed dates
-                          </button>
-                        </>
-                      )}
-                    </section>
-                  )}
-                  {mode !== "expiry" && rows.length > 0 && (
+                  {rows.length > 0 && (
                     <section className="entry-review">
                       <div className="section-heading">
                         <div>
@@ -1127,8 +551,7 @@ export function EntryFlow({
                       </div>
                       <p className="muted small">
                         Uncheck anything incorrect. Separate different expiry
-                        dates into different rows. Photos of the same package
-                        are not counted twice automatically.
+                        dates into different rows.
                       </p>
                       {rows.map((r, i) => (
                         <article className="draft-card" key={r.id}>
@@ -1156,11 +579,9 @@ export function EntryFlow({
                             </button>
                           </div>
                           <p className="draft-source">
-                            {r.source === "photo"
-                              ? "Detected · needs review"
-                              : r.source === "shopping"
-                                ? "From purchased list"
-                                : "Manual suggestion"}
+                            {r.source === "shopping"
+                              ? "From purchased list"
+                              : "Manual suggestion"}
                             {r.sources.length > 1
                               ? ` · ${r.sources.length} sources`
                               : ""}
@@ -1285,43 +706,6 @@ export function EntryFlow({
                               />
                             </label>
                           </details>
-                          {r.barcode && (
-                            <div className="barcode-review">
-                              <p>Barcode: {r.barcode}</p>
-                              <button
-                                className="text-btn"
-                                disabled={busy}
-                                onClick={() =>
-                                  void run(async () => {
-                                    const { lookupBarcode } =
-                                      await import("./lookup");
-                                    const p = await lookupBarcode(r.barcode!);
-                                    const suggestion = makeDraft(
-                                      p.name + " " + p.quantity,
-                                      "photo",
-                                      combined,
-                                    );
-                                    edit(r.id, {
-                                      ...suggestion,
-                                      id: r.id,
-                                      barcode: r.barcode,
-                                      sources: r.sources,
-                                      review: [
-                                        ...suggestion.review,
-                                        "Open Food Facts result; confirm product and size.",
-                                      ],
-                                    });
-                                  })
-                                }
-                              >
-                                Look up barcode online
-                              </button>
-                              <small>
-                                Optional: sends only this barcode to Open Food
-                                Facts. No photo is sent.
-                              </small>
-                            </div>
-                          )}
                         </article>
                       ))}
                       <label className="entry-checkbox merge-choice">
@@ -1367,9 +751,8 @@ export function EntryFlow({
                 <summary>Saved product patterns & drafts</summary>
                 <p className="muted small">
                   Shared groceries/history inform suggestions across family
-                  devices. Confirmed package patterns and barcode shortcuts are
-                  also saved privately on this device for this account and
-                  kitchen. Photos are not stored or uploaded. Unfinished item
+                  devices. Confirmed package patterns are also saved privately
+                  on this device for this account and kitchen. Unfinished item
                   reviews are kept locally, not shared.
                 </p>
                 <div className="form-actions">
