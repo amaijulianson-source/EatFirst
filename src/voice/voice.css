@@ -271,3 +271,40 @@
   min-height: 44px;
   justify-content: center;
 }
+
+.usage-review-card > label {
+  margin-top: 14px;
+}
+.usage-batch {
+  padding: 13px;
+  border: 1px solid var(--border);
+  border-radius: 13px;
+  margin: 16px 0;
+  background: var(--surface);
+}
+.usage-batch strong {
+  font-size: 0.85rem;
+}
+.usage-fractions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 7px;
+  margin: 13px 0;
+}
+.usage-fractions .chip {
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: var(--soft);
+  color: var(--green);
+  padding: 9px 11px;
+  min-height: 44px;
+  font-size: 0.78rem;
+}
+.usage-remaining {
+  font-size: 0.78rem;
+  line-height: 1.6;
+  color: var(--green);
+}
+.usage-waste {
+  border-left: 3px solid var(--muted);
+}

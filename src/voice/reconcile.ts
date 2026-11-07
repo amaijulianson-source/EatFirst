@@ -4,12 +4,16 @@ import {
   type Data,
   type Food,
   addShopping,
+  consume,
 } from "../core";
 import { productKey } from "../entry/model";
 import { canonical } from "../family/changes";
+import { planUsage, type UsageAllocation } from "./consumption";
+import { usageLabel } from "./intents";
 import type { VoiceItem, VoiceMode } from "./interpret";
 export type VoiceReview = VoiceItem & {
-  action: "new" | "replace" | "increase" | "choose";
+  action: "new" | "replace" | "increase" | "choose" | "consume";
+  allocations?: UsageAllocation[];
   targetId: string;
   newId: string;
   included: boolean;
@@ -19,13 +23,30 @@ export function reviewInventory(
   items: VoiceItem[],
   data: Data,
   mode: VoiceMode,
+  today = localDate(),
 ): VoiceReview[] {
   return items.map((item) => {
+    if ((item.intent ?? mode) === "consume" && !item.consumption)
+      item = { ...item, consumption: { kind: "used", amount: "unclear" } };
+    if (item.consumption) {
+      const plan = planUsage(item, data, today);
+      return {
+        ...item,
+        newId: crypto.randomUUID(),
+        action: "consume" as const,
+        targetId: "",
+        included: true,
+        addToShopping: false,
+        allocations: plan.allocations,
+        warnings: [...item.warnings, ...plan.warnings],
+      };
+    }
+    const itemMode = item.intent ?? mode;
     const matches = data.foods.filter(
       (f) => productKey(f.name) === productKey(item.name),
     );
     const matched =
-      mode === "check" && matches.length === 1 ? matches[0] : undefined;
+      itemMode === "check" && matches.length === 1 ? matches[0] : undefined;
     return {
       ...item,
       category: matched?.category ?? item.category,
@@ -41,7 +62,7 @@ export function reviewInventory(
       ],
       newId: crypto.randomUUID(),
       action:
-        mode === "purchase"
+        itemMode === "purchase"
           ? "new"
           : matches.length > 1
             ? "choose"
@@ -50,7 +71,8 @@ export function reviewInventory(
                 ? "choose"
                 : "replace"
               : "new",
-      targetId: mode === "check" && matches.length === 1 ? matches[0].id : "",
+      targetId:
+        itemMode === "check" && matches.length === 1 ? matches[0].id : "",
       included: true,
       addToShopping: false,
     };
@@ -62,8 +84,8 @@ export function applyVoiceReview(
   rows: VoiceReview[],
   today = localDate(),
 ) {
-  const next = structuredClone(current),
-    selected = rows.filter((r) => r.included);
+  let next = structuredClone(current);
+  const selected = rows.filter((r) => r.included);
   const targets = new Set<string>();
   if (!selected.length) throw Error("Keep at least one item to confirm.");
   for (const r of selected) {
@@ -76,7 +98,56 @@ export function applyVoiceReview(
     )
       throw Error("Check each quantity.");
     let food: Food;
-    if (r.action === "new") {
+    if (r.action === "consume") {
+      if (!r.consumption || !r.allocations?.length)
+        throw Error(`Choose a recorded batch and amount for ${r.name}.`);
+      const seen = new Set<string>();
+      for (const [index, a] of r.allocations.entries()) {
+        if (seen.has(a.id))
+          throw Error(
+            "The same batch appears twice in one deduction. Combine its amount first.",
+          );
+        seen.add(a.id);
+        const before = baseline.foods.find((f) => f.id === a.id),
+          now = current.foods.find((f) => f.id === a.id);
+        if (!before || !now || canonical(before) !== canonical(now))
+          throw Error(
+            `${r.name} changed while you were reviewing. Reopen the transcript and Finish again; nothing was deducted.`,
+          );
+        if (productKey(now.name) !== productKey(r.name))
+          throw Error(
+            `The selected batch is not ${r.name}. Choose the correct recorded product.`,
+          );
+        if (
+          selected.some(
+            (other) =>
+              other !== r &&
+              other.action !== "consume" &&
+              other.targetId === a.id,
+          )
+        )
+          throw Error(
+            "A stock update and deduction target the same batch. Confirm these actions separately.",
+          );
+        if (a.amount === null || !Number.isFinite(a.amount) || a.amount <= 0)
+          throw Error(`Enter the actual amount of ${r.name} in ${now.unit}.`);
+        if (now.quantityUnknown && !(a.whole && a.amount === now.quantity))
+          throw Error(
+            "The recorded quantity is unknown. Enter known stock in Inventory first, or explicitly confirm the whole item is finished.",
+          );
+        const eventId = `voice-${r.newId}-${index}`;
+        if (
+          current.events.some((e) => e.id === eventId) ||
+          next.events.some((e) => e.id === eventId)
+        )
+          throw Error(
+            "This deduction was already recorded. Close the session to avoid deducting it twice.",
+          );
+        next = consume(next, a.id, a.amount, r.consumption.kind, today);
+        next.events[next.events.length - 1].id = eventId;
+      }
+      continue;
+    } else if (r.action === "new") {
       const beforeMatches = baseline.foods.filter(
         (f) => productKey(f.name) === productKey(r.name),
       );
@@ -156,6 +227,8 @@ export function applyVoiceReview(
   return validateBackup(next);
 }
 export function proposedAction(row: VoiceReview, data: Data) {
+  if (row.action === "consume" && row.consumption)
+    return usageLabel(row.consumption);
   const f = data.foods.find((f) => f.id === row.targetId);
   if (row.action === "choose")
     return "Choose an existing batch or add a new one";

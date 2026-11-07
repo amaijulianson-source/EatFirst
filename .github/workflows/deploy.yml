@@ -36,7 +36,7 @@ jobs:
         run: npx playwright install --with-deps webkit
         timeout-minutes: 5
       - name: Test voice UI and interruption recovery in WebKit
-        run: EATFIRST_TEST_WEBKIT=true npx playwright test tests/e2e/voice.spec.ts --project=safari
+        run: EATFIRST_TEST_WEBKIT=true npx playwright test --project=safari
       - run: npm run check:cloud-config && npm run build
         env:
           VITE_SUPABASE_URL: ${{ secrets.VITE_SUPABASE_URL }}

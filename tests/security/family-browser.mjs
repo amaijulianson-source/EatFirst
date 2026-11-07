@@ -225,6 +225,84 @@ try {
     ).length,
     1,
   );
+  // The local transport has no Realtime WebSocket; focus must refetch the member's last edit first.
+  await a.evaluate(() => window.dispatchEvent(new Event("focus")));
+  await expect(a.getByRole("button", { name: /Eggs 8 pieces/ })).toBeVisible({
+    timeout: 15000,
+  });
+  // Recipe-independent voice use updates inventory and activity in one household batch.
+  await a.getByRole("button", { name: "Add food", exact: true }).click();
+  await a
+    .getByRole("button", { name: "Tell EatFirst what I used", exact: true })
+    .click();
+  await a
+    .getByLabel("Your words", { exact: true })
+    .fill("I used two eggs. I ate one banana.");
+  await a.getByRole("button", { name: "Finish & review", exact: true }).click();
+  const usageAck = a.getByRole("checkbox", {
+    name: "I’ve checked uncertain names, amounts, dates and references.",
+  });
+  if (await usageAck.isVisible()) await usageAck.check();
+  await a
+    .getByRole("button", { name: "Confirm inventory changes", exact: true })
+    .click();
+  await a.getByRole("button", { name: "Done", exact: true }).click();
+  await expect
+    .poll(async () => {
+      const d = (await owner.rpc("household_snapshot", { h: house })).data;
+      return [
+        d.foods.find((f) => f.name === "Eggs")?.quantity,
+        d.foods.some((f) => f.name === "Bananas"),
+        d.events.filter((e) => e.action === "used").length,
+        d.events.filter((e) => e.action === "eaten").length,
+      ];
+    })
+    .toEqual([6, false, 1, 1]);
+  await b.goto(`${base}#Inventory`);
+  await b.evaluate(() => window.dispatchEvent(new Event("focus")));
+  await expect(b.getByRole("button", { name: /Eggs 6 pieces/ })).toBeVisible({
+    timeout: 15000,
+  });
+  await cb.setOffline(true);
+  await b.getByRole("button", { name: "Add food", exact: true }).click();
+  await b
+    .getByRole("button", { name: "Talk to EatFirst", exact: true })
+    .click();
+  await b
+    .getByLabel("Your words", { exact: true })
+    .fill("I threw away one egg.");
+  await b.getByRole("button", { name: "Finish & review", exact: true }).click();
+  const wasteAck = b.getByRole("checkbox", {
+    name: "I’ve checked uncertain names, amounts, dates and references.",
+  });
+  if (await wasteAck.isVisible()) await wasteAck.check();
+  await b
+    .getByRole("button", { name: "Confirm inventory changes", exact: true })
+    .click();
+  await b.getByRole("button", { name: "Done", exact: true }).click();
+  await b.reload();
+  await expect(b.getByRole("button", { name: /Eggs 5 pieces/ })).toBeVisible();
+  await cb.setOffline(false);
+  await expect
+    .poll(
+      async () => {
+        const d = (await member.rpc("household_snapshot", { h: house })).data;
+        return [
+          d.foods.find((f) => f.name === "Eggs")?.quantity,
+          d.events.filter((e) => e.action === "discarded").length,
+        ];
+      },
+      { timeout: 20000 },
+    )
+    .toEqual([5, 1]);
+  const consumedSnapshot = (
+    await member.rpc("household_snapshot", { h: house })
+  ).data;
+  assert.equal(
+    new Set(consumedSnapshot.events.map((e) => e.id)).size,
+    consumedSnapshot.events.length,
+  );
+  assert(!JSON.stringify(consumedSnapshot).includes("I threw away"));
   await b.goto(`${base}#Shopping`);
   await b.getByLabel("Shopping item name").fill("Bread");
   await b.getByLabel("New shopping item quantity").fill("1 loaf");
@@ -320,6 +398,7 @@ try {
         confirmedVoiceReconcileLowStockUnknownQuantity: "passed",
         voiceOfflineQueueReloadAndNoDuplicate: "passed",
         sharedTranscripts: "none",
+        independentVoiceCookingEatingAndOfflineWaste: "passed",
         revokedAccessPendingExport: "passed",
         pageErrors: errors,
         realtimeWebsocket: "separate verification required",

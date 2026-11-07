@@ -42,6 +42,9 @@ import {
   clearVoiceDraft,
   type VoiceDraft,
 } from "./storage";
+import { ConsumptionReview } from "./ConsumptionReview";
+import { usageAmountLabel, validAllocation } from "./consumption";
+import { usageLabel } from "./intents";
 import "./voice.css";
 const idle: SpeechSnapshot = {
   status: "idle",
@@ -75,6 +78,7 @@ export function VoiceInventory({
   scopeGuard,
   close,
   back,
+  defaultMode = "check",
 }: {
   data: Data;
   identity: string;
@@ -82,9 +86,10 @@ export function VoiceInventory({
   scopeGuard: () => boolean;
   close: () => void;
   back: () => void;
+  defaultMode?: VoiceMode;
 }) {
   const [speech, setSpeech] = useState(idle),
-    [mode, setMode] = useState<VoiceMode>("check"),
+    [mode, setMode] = useState<VoiceMode>(defaultMode),
     [language, setLanguage] = useState<"nl-NL" | "en-GB">(
       navigator.language.startsWith("nl") ? "nl-NL" : "en-GB",
     ),
@@ -127,6 +132,7 @@ export function VoiceInventory({
     void readVoiceDraft(identity)
       .then((d) => {
         if (!valid) return;
+        if (d && !d.text.trim() && !d.pending && !d.rows.length) d = null;
         const text = d?.text ?? "";
         setSpeech({
           ...idle,
@@ -265,7 +271,7 @@ export function VoiceInventory({
       );
     }
     baseline.current = structuredClone(data);
-    setRows(reviewInventory(result.items, baseline.current, mode));
+    setRows(reviewInventory(result.items, baseline.current, mode, today));
     setResolvedDate(today);
     setPhase("review");
     setUnderstood(false);
@@ -336,8 +342,20 @@ export function VoiceInventory({
         </button>
       </div>
     );
+  const usageIncomplete = rows.some(
+    (r) =>
+      r.included &&
+      r.action === "consume" &&
+      (!r.allocations?.length ||
+        r.allocations.some(
+          (a) =>
+            !validAllocation(
+              a,
+              baseline.current.foods.find((f) => f.id === a.id),
+            ),
+        )),
+  );
   const reviewWarnings =
-    (parsed.suggestedMode !== undefined && parsed.suggestedMode !== mode) ||
     parsed.unresolved.length > 0 ||
     speech.pending !== "" ||
     rows.some(
@@ -386,6 +404,7 @@ export function VoiceInventory({
                 onChange={(e) => setMode(e.target.value as VoiceMode)}
               >
                 <option value="check">Check my stock · replace totals</option>
+                <option value="consume">Report used / eaten / discarded</option>
                 <option value="purchase">
                   Add new groceries · new batches
                 </option>
@@ -575,9 +594,11 @@ export function VoiceInventory({
                   <li key={r.id}>
                     <strong>{r.name}</strong>
                     <span>
-                      {r.quantity === null
-                        ? "Quantity unspecified"
-                        : `${r.quantity} ${r.unit}`}
+                      {r.consumption
+                        ? `${usageLabel(r.consumption)} · ${usageAmountLabel(r)}`
+                        : r.quantity === null
+                          ? "Quantity unspecified"
+                          : `${r.quantity} ${r.unit}`}
                       {r.lowStock ? " · Low stock" : ""}
                       {r.expiry ? ` · ${r.expiry}` : ""}
                     </span>
@@ -593,11 +614,14 @@ export function VoiceInventory({
           </div>
           {parsed.suggestedMode && parsed.suggestedMode !== mode && (
             <p className="banner">
-              Your words sound like{" "}
-              {parsed.suggestedMode === "purchase"
-                ? "new purchases"
-                : "a stock check"}
-              . Check the selected mode before finishing.
+              Detected{" "}
+              {parsed.suggestedMode === "consume"
+                ? "food use, eating or waste"
+                : parsed.suggestedMode === "purchase"
+                  ? "new purchases"
+                  : "a stock check"}{" "}
+              from your words. Explicit actions appear in the review; nothing
+              changes until you confirm.
             </p>
           )}
           <div className="entry-confirm">
@@ -625,9 +649,8 @@ export function VoiceInventory({
             <span className="voice-kicker">One last look</span>
             <h3>Your kitchen, organized.</h3>
             <p>
-              {mode === "check"
-                ? "Review updates to what you already have. Existing totals are replaced, not added again."
-                : "Review your new purchases. Existing stock stays separate unless you choose to increase a batch."}
+              Review each proposed addition, stock update or deduction. Only
+              confirmed changes will be applied to your kitchen.
             </p>
           </div>
           <p className="small muted">
@@ -635,17 +658,6 @@ export function VoiceInventory({
             types need checking against the package; a date never guarantees
             safety.
           </p>
-          {parsed.suggestedMode && parsed.suggestedMode !== mode && (
-            <p className="banner">
-              Your words suggest{" "}
-              {parsed.suggestedMode === "purchase"
-                ? "new purchases"
-                : "a stock check"}
-              , but this review uses{" "}
-              {mode === "check" ? "stock totals" : "new purchases"}. Return to
-              the transcript to change mode if needed.
-            </p>
-          )}
           {parsed.unresolved.length > 0 && (
             <div className="banner">
               <strong>Some words need your help</strong>
@@ -664,6 +676,20 @@ export function VoiceInventory({
             </p>
           )}
           {rows.map((r, i) => {
+            if (r.action === "consume")
+              return (
+                <ConsumptionReview
+                  key={r.id}
+                  row={r}
+                  index={i}
+                  baseline={baseline.current}
+                  today={resolvedDate}
+                  edit={(patch) => edit(r.id, patch)}
+                  remove={() =>
+                    setRows((old) => old.filter((x) => x.id !== r.id))
+                  }
+                />
+              );
             const matches = baseline.current.foods.filter(
                 (f) => productKey(f.name) === productKey(r.name),
               ),
@@ -893,7 +919,19 @@ export function VoiceInventory({
             disabled={busy}
             onClick={() => {
               const n = normalizeProduct("");
+              const usageEntry =
+                mode === "consume" ||
+                (rows.length > 0 && rows.every((r) => r.action === "consume"));
               const item: VoiceItem = {
+                intent: usageEntry ? "consume" : mode,
+                ...(usageEntry
+                  ? {
+                      consumption: {
+                        kind: "used" as const,
+                        amount: "unclear" as const,
+                      },
+                    }
+                  : {}),
                 id: crypto.randomUUID(),
                 name: "",
                 quantity: null,
@@ -916,6 +954,12 @@ export function VoiceInventory({
             <Plus size={18} />
             Add a missing item
           </button>
+          {usageIncomplete && (
+            <p className="banner">
+              Choose a batch and enter an actual amount for each deduction, or
+              uncheck that ingredient. Vague amounts are never guessed.
+            </p>
+          )}
           {reviewWarnings && (
             <label className="entry-checkbox voice-ack">
               <input
@@ -941,6 +985,7 @@ export function VoiceInventory({
               disabled={
                 busy ||
                 !rows.some((r) => r.included) ||
+                usageIncomplete ||
                 (reviewWarnings && !understood)
               }
               onClick={() => void confirm()}

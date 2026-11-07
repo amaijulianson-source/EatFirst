@@ -34,7 +34,7 @@ export function validateVoiceDraft(value: unknown): VoiceDraft {
     d.text.length > 18000 ||
     typeof d.pending !== "string" ||
     d.pending.length > 4000 ||
-    !["check", "purchase"].includes(d.mode) ||
+    !["check", "purchase", "consume"].includes(d.mode) ||
     !["en-GB", "nl-NL"].includes(d.language) ||
     !["capture", "review"].includes(d.phase) ||
     typeof d.timeZone !== "string" ||
@@ -72,10 +72,47 @@ export function validateVoiceDraft(value: unknown): VoiceDraft {
       !Array.isArray(r.warnings) ||
       r.warnings.length > 50 ||
       !r.warnings.every((s) => typeof s === "string" && s.length < 1000) ||
-      !["new", "replace", "increase", "choose"].includes(r.action) ||
+      !["new", "replace", "increase", "choose", "consume"].includes(r.action) ||
       typeof r.targetId !== "string" ||
       typeof r.included !== "boolean" ||
       typeof r.addToShopping !== "boolean"
+    )
+      return fail();
+  }
+  for (const r of d.rows) {
+    if (
+      r.intent !== undefined &&
+      !["check", "purchase", "consume"].includes(r.intent)
+    )
+      return fail();
+    if (
+      r.consumption !== undefined &&
+      (!r.consumption ||
+        !["used", "eaten", "discarded"].includes(r.consumption.kind) ||
+        !["exact", "half", "all", "unclear"].includes(r.consumption.amount) ||
+        (r.consumption.last !== undefined &&
+          typeof r.consumption.last !== "boolean"))
+    )
+      return fail();
+    if (
+      r.action === "consume" &&
+      (!r.consumption || !Array.isArray(r.allocations))
+    )
+      return fail();
+    if (
+      r.allocations !== undefined &&
+      (!Array.isArray(r.allocations) ||
+        r.allocations.length > 100 ||
+        r.allocations.some(
+          (a) =>
+            !a ||
+            typeof a.id !== "string" ||
+            typeof a.whole !== "boolean" ||
+            !(
+              a.amount === null ||
+              (Number.isFinite(a.amount) && a.amount > 0 && a.amount <= 1000000)
+            ),
+        ))
     )
       return fail();
   }

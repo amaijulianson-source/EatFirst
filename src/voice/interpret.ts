@@ -6,8 +6,18 @@ import {
   type Pattern,
 } from "../entry/model";
 import { numberWords, spokenDate } from "./dates";
-export type VoiceMode = "check" | "purchase";
+import {
+  spokenIntent,
+  normalizeActionOrder,
+  mealIntroduction,
+  usageAmount,
+  type Usage,
+  type ConversationIntent,
+} from "./intents";
+export type VoiceMode = "check" | "purchase" | "consume";
 export type VoiceItem = {
+  intent?: VoiceMode;
+  consumption?: Usage;
   id: string;
   name: string;
   quantity: number | null;
@@ -140,9 +150,10 @@ export function interpretInventory(
   const normalized = numberWords(transcript)
     .replace(/(\d),(\d)/g, "$1.$2")
     .replace(/\b(?:u+h+m*|u+m+m*|e+h+m*)\b/gi, " ")
-    .replace(/\blike\b/g, " ");
+    .replace(/\blike\b/g, " ")
+    .replace(/[ \t]+/g, " ");
   // Clause markers help context; multiple food entities within a clause do not need punctuation.
-  const clauses = normalized
+  const clauses = normalizeActionOrder(normalized)
     .replace(
       /\b(oh wait|actually|no i meant|i meant|make that|make it|ik bedoel|eigenlijk|nee|maak dat)\b/g,
       "\n$1 ",
@@ -150,12 +161,27 @@ export function interpretInventory(
     .split(/\n|[;…!?]|\.(?!\d)|,|\b(?:and|en)\b/)
     .map((s) => s.trim())
     .filter(Boolean);
+  let activeExplicit = false,
+    activeFinished = false;
+  let activeIntent: ConversationIntent = {
+    mode: options.mode,
+    ...(options.mode === "consume" ? { kind: "used" as const } : {}),
+  };
   function newRow(name: string): VoiceItem {
     const n = normalizeProduct(name),
       memory = options.patterns?.find(
         (p) => productKey(p.name) === productKey(n.name),
       );
     return {
+      intent: activeExplicit ? activeIntent.mode : undefined,
+      ...(activeIntent.mode === "consume"
+        ? {
+            consumption: {
+              kind: activeIntent.kind ?? "used",
+              amount: "unclear" as const,
+            },
+          }
+        : {}),
       id: `voice-${items.length + 1}`,
       name: n.name,
       quantity: null,
@@ -171,7 +197,26 @@ export function interpretInventory(
     };
   }
   for (const clause of clauses) {
-    if (filler.test(clause)) continue;
+    if (
+      filler.test(clause) ||
+      mealIntroduction(clause) ||
+      /^(?:not|niet) \d+$/.test(clause)
+    )
+      continue;
+    if (
+      /\b(?:didn't|did not|haven't|have not|niet gebruikt|niet opgegeten|niet weggegooid)\b/.test(
+        clause,
+      )
+    ) {
+      unresolved.push(`Negative statement needs checking: “${clause}”`);
+      continue;
+    }
+    const explicit = spokenIntent(clause);
+    if (explicit) {
+      activeIntent = explicit;
+      activeExplicit = true;
+      activeFinished = /\b(?:finished|opgemaakt|opgedronken)\b/.test(clause);
+    }
     if (
       /^(?:no|nee|oh wait|actually|i meant|ik bedoel|make that|make it|eigenlijk)$/.test(
         clause,
@@ -194,13 +239,31 @@ export function interpretInventory(
           const nextQuantity = quantity(after, mentions[i + 1].name);
           if (nextQuantity) after = after.slice(0, nextQuantity.index);
         }
+        if (
+          /\b(?:not|niet)\s+(?:\d+(?:[.,]\d+)?(?:\s+[a-z]+)?\s*)?$/.test(
+            before.trim(),
+          )
+        )
+          continue;
         // An expiry number belongs to the previous food, never to the next one.
         if (spokenDate(before, options.today)) before = "";
-        const q = quantity(before, m.name);
+        const q = quantity(
+          before.replace(
+            /\b(?:spoiled|rotten|expired|bedorven|verrotte|fresh|verse)\b/g,
+            " ",
+          ),
+          m.name,
+        );
         const postfix = after.match(new RegExp(`^\\s*(${unitWords})\\b`, "i"));
         if (q && !q.unit && postfix) q.unit = spokenUnit(postfix[1], m.name);
         const key = productKey(m.name);
-        let row = items.find((r) => productKey(r.name) === key);
+        let row = items.find(
+          (r) =>
+            productKey(r.name) === key &&
+            (r.intent ?? options.mode) === activeIntent.mode &&
+            (activeIntent.mode !== "consume" ||
+              r.consumption?.kind === (activeIntent.kind ?? "used")),
+        );
         const previouslyMentioned = Boolean(row);
         const isCorrection = correction.test(before) || correctionPending,
           isAddition = addition.test(before) && !/\bneed more\b/.test(before);
@@ -208,6 +271,7 @@ export function interpretInventory(
           !row &&
           isCorrection &&
           focus &&
+          (focus.intent ?? options.mode) === activeIntent.mode &&
           (/\b(?:i meant|make (?:that|it)|ik bedoel|maak (?:dat|er)|instead)\b/.test(
             before,
           ) ||
@@ -267,12 +331,35 @@ export function interpretInventory(
         );
         if (statedTotal)
           row.quantity = Number(statedTotal[1].replace(",", "."));
+        if (activeIntent.mode === "consume") {
+          row.consumption = usageAmount(
+            `${before} ${after}`,
+            row.quantity !== null,
+            activeIntent.kind ?? "used",
+          );
+          // A bare continuation still inherits a finished/all action only when it explicitly says so.
+          if (
+            row.consumption.amount === "unclear" &&
+            activeFinished &&
+            !/\b(?:almost|nearly|bijna)\b/.test(`${before} ${after}`)
+          )
+            row.consumption.amount = "all";
+        }
         correctionPending = false;
         focus = row;
         thisGroup.push(row);
       }
       referenceGroup = thisGroup;
     } else if (focus) {
+      if (
+        activeIntent.mode === "consume" &&
+        (!focus.consumption ||
+          focus.consumption.kind !== (activeIntent.kind ?? "used"))
+      ) {
+        const ref = newRow(focus.name);
+        items.push(ref);
+        focus = ref;
+      }
       const isCorrection = correction.test(clause) || correctionPending;
       const q = quantity(
         clause.replace(/\b(?:in total|total|totaal|over|left)\b/g, "").trim(),
@@ -321,6 +408,16 @@ export function interpretInventory(
         } else if (!isQualifier)
           unresolved.push(`Check this amount: “${clause}”`);
       }
+      if (
+        focus.consumption &&
+        (q ||
+          /\b(?:half|helft|all|finished|rest|alles|opgemaakt)\b/.test(clause))
+      )
+        focus.consumption = usageAmount(
+          clause,
+          focus.quantity !== null,
+          focus.consumption.kind,
+        );
       if (isQualifier) qualifiers(focus, clause, options.today);
       else if (
         !q &&
@@ -348,12 +445,12 @@ export function interpretInventory(
   return {
     items,
     unresolved: [...new Set(unresolved)],
-    suggestedMode: /\b(?:bought|purchased|gekocht)\b/.test(normalized)
-      ? "purchase"
-      : /\b(?:i have|we have|there is|there's|ik heb|we hebben|er is)\b/.test(
-            normalized,
-          )
-        ? "check"
-        : undefined,
+    suggestedMode: items.some((r) => r.consumption)
+      ? "consume"
+      : items.some((r) => r.intent === "purchase")
+        ? "purchase"
+        : items.some((r) => r.intent === "check")
+          ? "check"
+          : undefined,
   };
 }

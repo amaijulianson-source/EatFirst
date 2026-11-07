@@ -31,7 +31,7 @@ import {
 import { VoiceInventory } from "../voice/VoiceInventory";
 import { Mic } from "lucide-react";
 import "./entry.css";
-export type EntryMode = "choose" | "shopping" | "quick" | "voice";
+export type EntryMode = "choose" | "shopping" | "quick" | "voice" | "used";
 type ModalComponent = (p: {
   title: string;
   children: ReactNode;
@@ -96,7 +96,7 @@ export function EntryFlow({
     baseline.current = structuredClone(data);
     void Promise.all([
       readPatterns(identity),
-      mode !== "choose" && mode !== "voice"
+      mode !== "choose" && mode !== "voice" && mode !== "used"
         ? readDraft(key)
         : Promise.resolve(null),
     ])
@@ -262,11 +262,12 @@ export function EntryFlow({
     "bunch",
     "box",
   ];
-  if (mode === "voice")
+  if (mode === "voice" || mode === "used")
     return (
       <Modal title="Talk to EatFirst" close={close}>
         <VoiceInventory
           data={data}
+          defaultMode={mode === "used" ? "consume" : "check"}
           identity={identity}
           commit={commit}
           scopeGuard={scopeGuard}
@@ -305,6 +306,12 @@ export function EntryFlow({
                 icon: Mic,
                 title: "Talk to EatFirst",
                 body: "Describe your kitchen naturally. Review every change before saving.",
+              },
+              {
+                mode: "used",
+                icon: Check,
+                title: "Tell EatFirst what I used",
+                body: "Cooking, snacks or waste. Review deductions from your existing groceries.",
               },
               {
                 mode: "shopping",
