@@ -5,7 +5,8 @@
 Inventory → Add food → **Talk to EatFirst** is the primary entry choice. Manual Quick add and shopping-trip transfer remain. Pick one of two explicit modes:
 
 - **Check what I have:** a spoken count is a current total, not an increment. A unique existing match is proposed for update; multiple batches or mismatched units require choosing. Unspoken quantities, dates, notes, prices and storage remain intact.
-- **Add new groceries:** purchases are proposed as separate new batches. You can explicitly increase a compatible existing batch instead. A different expiry requires a new batch. Spoken intent is suggested, never silently used to change the chosen mode.
+- **Report used / eaten / discarded:** enter cooking, eating or waste without using an app recipe. The separate **Tell EatFirst what I used** entry opens this mode.
+- **Add new groceries:** purchases are proposed as separate new batches. You can explicitly increase a compatible existing batch instead. A different expiry requires a new batch. Explicit reporting verbs select each proposed action; a bare ingredient list inherits the selected mode. The review makes every addition, total update and deduction explicit before confirmation.
 
 Choose **English** or **Nederlands**, then tap the microphone. The browser permission prompt and speech engine control availability. Recognition languages are selected explicitly; automatic bilingual switching is not promised.
 
@@ -69,3 +70,15 @@ Primary sources consulted November 2026:
 - [Vosk model sizes, licenses and memory guidance](https://alphacephei.com/vosk/models).
 
 Physical iPhone microphone recognition, Siri permissions, installed-mode capture, calls, screen locking, battery use and actual recognition accuracy need real-device verification. Automated fake speech events exercise the app's lifecycle; they are explicitly not evidence that Apple's/Google's transcription service successfully heard a real person.
+
+## Recipe-independent consumption and waste
+
+Explicit English/Dutch action verbs distinguish purchases, stock descriptions, cooking use, eating and discarding. “I used three tomatoes”, “Ik heb twee eieren gebruikt”, “I ate two bananas”, “Ik heb twee bananen gegeten”, “We finished the milk” and “I threw away the spoiled tomatoes” are consumption/waste reports. Unquantified meal introductions such as “I just made pasta” supply context, not an ingredient to deduct. Counts, corrections, language choice, long-pause recovery and private transcript drafts use the same voice-session machinery. This remains a bounded grammar: unexpected phrasing, negations or unclear references may need editing.
+
+`consumption.ts` prepares editable batch allocations; `applyVoiceReview` reuses the existing `core.consume` function for partial quantities, activity events and recorded values. Numeric amounts can be split across compatible same-category/storage batches by earliest non-past expiry. Users review each batch and can change the split. Different storage/categories, incompatible units, missing products, shortages and relative fractions across several batches require choosing rather than guessing. Explicit location/date descriptions restrict automatic matching. Past-date food is not automatically proposed for cooking/eating; an explicit selection can truthfully record a past action with a warning, without claiming it was safe. Discard proposals can prioritize expired stock.
+
+“Half the cheese” means half the quantity of one clearly matched, known batch. “Half a loaf” is an explicit absolute amount, not half all the bread. “Some olive oil”, “a little butter” and “almost all the pasta” remain unresolved until the user enters an amount or explicitly chooses ¼, half or the whole selected item. Cartons are never converted to guessed litres. Explicit compatible units (such as g/kg) can be converted arithmetically. Unknown recorded quantities cannot support partial deductions; a user can explicitly confirm the entire unknown-quantity item is finished. “Last three” proposes three and flags a discrepancy if the database records more, rather than silently deleting the remainder.
+
+No deduction occurs before **Confirm inventory changes**. The confirmation button remains disabled while an included allocation needs an amount/batch. Overdrawing, stale records, duplicate batch allocations, wrong-product targets and implicit stock-update-plus-deduction of the same batch are rejected atomically. Voice event identifiers persist in the private review, preventing an old confirmed review from being replayed even if stock was replenished. The existing server operation IDs and expected-value checks add transaction-level duplicate/conflict protection. Reopening the transcript and finishing again rebuilds a stale review from current inventory.
+
+Used/eaten events and inventory changes synchronize in one household operation. Only discarded events enter waste totals; estimated financial values come from existing recorded item values and the original consumption logic. No recipe ID, new backend, SQL migration or audio/transcript upload is needed. Grocery and activity backups preserve these existing event types.

@@ -21,7 +21,7 @@ export default defineConfig({
       ? [
           {
             name: "safari",
-            testMatch: "**/voice.spec.ts",
+            testMatch: ["**/voice.spec.ts", "**/consumption.spec.ts"],
             use: { ...devices["iPhone 13"] },
           },
         ]
