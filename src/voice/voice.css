@@ -261,3 +261,13 @@
   margin-top: 7px;
   font-size: 0.84rem;
 }
+
+/* A floating review bar must never obscure microphone status on short WebKit viewports. */
+.voice-capturing .entry-confirm {
+  position: static;
+}
+.voice-finish {
+  margin: 8px auto 0;
+  min-height: 44px;
+  justify-content: center;
+}

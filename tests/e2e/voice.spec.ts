@@ -93,6 +93,10 @@ test("segmented speech preserves long pauses, interim corrections and microphone
 }) => {
   await mockSpeech(page);
   await enter(page);
+  await expect(page.locator(".voice-mic")).toBeInViewport({ ratio: 1 });
+  await expect(page.getByRole("dialog").getByRole("status")).toBeInViewport({
+    ratio: 1,
+  });
   const micBox = await page.locator(".voice-mic").boundingBox(),
     statusBox = await page
       .getByRole("dialog")

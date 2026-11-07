@@ -347,7 +347,9 @@ export function VoiceInventory({
         (r.expiry && r.dateType === "unknown"),
     );
   return (
-    <div className="voice-flow">
+    <div
+      className={`voice-flow ${phase === "capture" ? "voice-capturing" : ""}`}
+    >
       {error && (
         <p className="banner danger" role="alert">
           {error}
@@ -430,6 +432,13 @@ export function VoiceInventory({
                         ? "Tap to start"
                         : "Microphone off · Resume listening"}
             </strong>
+            <button
+              className="text-btn voice-finish"
+              onClick={() => void finish()}
+            >
+              <Check size={16} />
+              Finish session
+            </button>
             <p>
               {!factory
                 ? "This browser does not offer speech recognition. Tap the transcript and use your keyboard’s microphone, or type naturally."

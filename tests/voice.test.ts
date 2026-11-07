@@ -98,6 +98,16 @@ describe("natural grocery conversation interpretation (transcripts, not micropho
     "handles additional natural amounts and corrections: %s",
     (text, quantity) => expect(rows(text)[0].quantity).toBe(quantity),
   );
+  it.each([
+    ["Ik heb 1,5 liter melk", 1.5],
+    ["I have 0.5 litres of milk", 0.5],
+  ])("keeps explicitly spoken decimal amounts for %s", (text, quantity) =>
+    expect(rows(text)[0]).toMatchObject({
+      name: "Milk",
+      quantity,
+      unit: "litre",
+    }),
+  );
   it("keeps milk identity when corrected to oat milk", () =>
     expect(rows("Milk… actually, make that oat milk.")).toMatchObject([
       { name: "Oat drink", quantity: null },

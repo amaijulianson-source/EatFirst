@@ -138,6 +138,7 @@ export function interpretInventory(
   let referenceGroup: VoiceItem[] = [];
   let correctionPending = false;
   const normalized = numberWords(transcript)
+    .replace(/(\d),(\d)/g, "$1.$2")
     .replace(/\b(?:u+h+m*|u+m+m*|e+h+m*)\b/gi, " ")
     .replace(/\blike\b/g, " ");
   // Clause markers help context; multiple food entities within a clause do not need punctuation.
